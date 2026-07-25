@@ -1,0 +1,247 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum Role {
+  customer
+  reception
+  kitchen
+  inventory
+  admin
+}
+
+enum AuthProvider {
+  local
+  google
+}
+
+enum TableStatus {
+  free
+  occupied
+  reserved
+}
+
+enum ReservationStatus {
+  pending
+  confirmed
+  seated
+  cancelled
+  completed
+}
+
+enum OrderItemStatus {
+  received
+  preparing
+  ready
+  served
+}
+
+enum OrderStatus {
+  placed
+  preparing
+  ready
+  served
+  completed
+  cancelled
+}
+
+enum PaymentStatus {
+  unpaid
+  pending_at_table
+  paid
+}
+
+enum PaymentMethod {
+  in_app
+  pay_at_table
+}
+
+enum InventoryTransactionType {
+  reserve
+  deduct
+  restock
+  release
+  adjustment
+}
+
+enum NotificationType {
+  reservation_confirmed
+  table_ready
+  order_ready
+  low_stock
+  custom
+}
+
+// Models
+model User {
+  id                String                 @id @default(cuid())
+  name              String
+  email             String                 @unique
+  phone             String?
+  password_hash     String?
+  auth_provider     AuthProvider
+  role              Role
+  is_active         Boolean                @default(true)
+  otp_code          String?
+  otp_expires_at    DateTime?
+  created_at        DateTime               @default(now())
+  updated_at        DateTime               @updatedAt
+  reservations      Reservation[]
+  orders            Order[]
+  reviews           Review[]
+  transactions      InventoryTransaction[] @relation("PerformedBy")
+  notifications     Notification[]
+  waitlist_entries  WaitlistEntry[]
+}
+
+model Table {
+  id               String        @id @default(cuid())
+  table_number     Int           @unique
+  capacity         Int
+  status           TableStatus   @default(free)
+  current_order_id String?
+  restaurant_id    String // For future-proofing
+  reservations     Reservation[]
+  orders           Order[]
+}
+
+model Reservation {
+  id              String            @id @default(cuid())
+  customer        User              @relation(fields: [customer_id], references: [id])
+  customer_id     String
+  table           Table             @relation(fields: [table_id], references: [id])
+  table_id        String
+  date            DateTime
+  party_size      Int
+  special_request String?
+  status          ReservationStatus @default(pending)
+  created_at      DateTime          @default(now())
+}
+
+model MenuItem {
+  id           String       @id @default(cuid())
+  name         String       @unique
+  description  String
+  price        Decimal      @db.Decimal(10, 2)
+  category     String
+  image_url    String?
+  is_available Boolean      @default(true)
+  created_at   DateTime     @default(now())
+  updated_at   DateTime     @updatedAt
+  recipe       RecipeItem[]
+  order_items  OrderItem[]
+}
+
+model RecipeItem {
+  id            String        @id @default(cuid())
+  menu_item     MenuItem      @relation(fields: [menu_item_id], references: [id])
+  menu_item_id  String
+  ingredient    InventoryItem @relation(fields: [ingredient_id], references: [id])
+  ingredient_id String
+  quantity      Float
+  unit          String
+
+  @@unique([menu_item_id, ingredient_id])
+}
+
+model Order {
+  id                     String                 @id @default(cuid())
+  table                  Table                  @relation(fields: [table_id], references: [id])
+  table_id               String
+  customer               User                   @relation(fields: [customer_id], references: [id])
+  customer_id            String
+  created_by_role        Role
+  order_status           OrderStatus            @default(placed)
+  payment_status         PaymentStatus          @default(unpaid)
+  payment_method         PaymentMethod?
+  total_amount           Decimal                @db.Decimal(10, 2)
+  created_at             DateTime               @default(now())
+  updated_at             DateTime               @updatedAt
+  items                  OrderItem[]
+  reviews                Review[]
+  inventory_transactions InventoryTransaction[]
+}
+
+model OrderItem {
+  id                   String          @id @default(cuid())
+  order                Order           @relation(fields: [order_id], references: [id])
+  order_id             String
+  menu_item            MenuItem        @relation(fields: [menu_item_id], references: [id])
+  menu_item_id         String
+  quantity             Int
+  price_at_order       Decimal         @db.Decimal(10, 2)
+  custom_instructions  String?
+  allergy_info         String?
+  status               OrderItemStatus @default(received)
+  status_updated_at    DateTime        @default(now())
+}
+
+model InventoryItem {
+  id                String                 @id @default(cuid())
+  name              String                 @unique
+  unit              String
+  total_stock       Float
+  reserved_stock    Float                  @default(0)
+  reorder_threshold Float
+  created_at        DateTime               @default(now())
+  updated_at        DateTime               @updatedAt
+  recipe_items      RecipeItem[]
+  transactions      InventoryTransaction[]
+}
+
+model InventoryTransaction {
+  id            String                   @id @default(cuid())
+  item          InventoryItem            @relation(fields: [item_id], references: [id])
+  item_id       String
+  type          InventoryTransactionType
+  quantity      Float
+  order         Order?                   @relation(fields: [order_id], references: [id])
+  order_id      String?
+  performed_by  User                     @relation("PerformedBy", fields: [performed_by_id], references: [id])
+  performed_by_id String
+  note          String?
+  created_at    DateTime                 @default(now())
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  order       Order    @relation(fields: [order_id], references: [id])
+  order_id    String
+  customer    User     @relation(fields: [customer_id], references: [id])
+  customer_id String
+  rating      Int
+  comment     String?
+  created_at  DateTime @default(now())
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  user       User             @relation(fields: [user_id], references: [id])
+  user_id    String
+  type       NotificationType
+  title      String
+  message    String
+  is_read    Boolean          @default(false)
+  created_at DateTime         @default(now())
+}
+
+model WaitlistEntry {
+  id          String    @id @default(cuid())
+  customer    User?     @relation(fields: [customer_id], references: [id])
+  customer_id String?
+  party_name  String
+  party_size  Int
+  phone       String
+  status      String    @default("waiting") // waiting, seated, cancelled
+  created_at  DateTime  @default(now())
+  seated_at   DateTime?
+}
