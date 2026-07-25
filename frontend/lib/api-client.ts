@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
-const apiClient = axios.create({
+export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
@@ -13,9 +13,11 @@ const apiClient = axios.create({
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
@@ -24,7 +26,7 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle token refresh
+// Response interceptor to handle errors
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -34,32 +36,16 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken) {
-          throw new Error('No refresh token');
-        }
-
-        // TODO: Implement token refresh endpoint
-        // const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
-        // const { accessToken } = response.data;
-        // localStorage.setItem('accessToken', accessToken);
-        // originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-        // return apiClient(originalRequest);
-
-        // For now, just redirect to login
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+      // Clear token and redirect to login
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
         window.location.href = '/auth/login';
-      } catch (refreshError) {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        window.location.href = '/auth/login';
-        return Promise.reject(refreshError);
       }
     }
 
-    return Promise.reject(error);
+    // Format error message
+    const message = error.response?.data?.message || error.message || 'An error occurred';
+    return Promise.reject(new Error(message));
   }
 );
 

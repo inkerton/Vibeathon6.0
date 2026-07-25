@@ -7,6 +7,7 @@ import { sendOTPEmail } from '../utils/email.util';
 import prisma from '../config/database';
 
 export class AuthService {
+
   async register(data: {
     name: string;
     email: string;
@@ -26,6 +27,7 @@ export class AuthService {
     // Hash password
     const password_hash = await bcrypt.hash(data.password, 10);
 
+    
     // Generate OTP
     const otp_code = generateOTP();
     const otp_expires_at = getOTPExpiryTime();

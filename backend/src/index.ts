@@ -37,15 +37,23 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
-app.use('/api/v1/auth', require('./routes/auth.routes'));
-app.use('/api/v1/menu', require('./routes/menu.routes'));
-app.use('/api/v1/reservations', require('./routes/reservation.routes'));
-app.use('/api/v1/seed', require('./routes/seed.routes'));
+import authRoutes from './routes/auth.routes';
+import menuRoutes from './routes/menu.routes';
+import reservationRoutes from './routes/reservation.routes';
+import orderRoutes from './routes/order.routes';
+import inventoryRoutes from './routes/inventory.routes';
+import recipeRoutes from './routes/recipe.routes';
+const seedRoutes = require('./routes/seed.routes');
+
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/menu', menuRoutes);
+app.use('/api/v1/reservations', reservationRoutes);
+app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/inventory', inventoryRoutes);
+app.use('/api/v1/recipes', recipeRoutes);
+app.use('/api/v1/seed', seedRoutes);
 // TODO: Add more routes as they are implemented
-// app.use('/api/v1/reservations', require('./routes/reservation.routes'));
-// app.use('/api/v1/orders', require('./routes/order.routes'));
 // app.use('/api/v1/tables', require('./routes/table.routes'));
-// app.use('/api/v1/inventory', require('./routes/inventory.routes'));
 // app.use('/api/v1/users', require('./routes/user.routes'));
 // app.use('/api/v1/notifications', require('./routes/notification.routes'));
 // app.use('/api/v1/reviews', require('./routes/review.routes'));

@@ -1,3 +1,4 @@
+import { getRouteParam } from '../utils/route-helpers';
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { MenuService } from '../services/menu.service';
@@ -45,7 +46,7 @@ export class MenuController {
 
   async getMenuItemById(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = getRouteParam(req, 'id');
       const menuItem = await menuService.getMenuItemById(id);
       
       res.status(200).json({
@@ -76,7 +77,7 @@ export class MenuController {
 
   async updateMenuItem(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = getRouteParam(req, 'id');
       const validatedData = updateMenuItemSchema.parse(req.body);
       const menuItem = await menuService.updateMenuItem(id, validatedData);
       
@@ -94,7 +95,7 @@ export class MenuController {
 
   async deleteMenuItem(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = getRouteParam(req, 'id');
       const result = await menuService.deleteMenuItem(id);
       
       res.status(200).json({
@@ -121,7 +122,7 @@ export class MenuController {
 
   async toggleAvailability(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = getRouteParam(req, 'id');
       const validatedData = toggleAvailabilitySchema.parse(req.body);
       const menuItem = await menuService.toggleAvailability(id, validatedData.is_available);
       

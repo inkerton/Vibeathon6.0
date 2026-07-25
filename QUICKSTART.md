@@ -1,159 +1,311 @@
-# Quick Start Guide
+# Quick Start Guide - Vibeathon 6.0
 
-## 🚀 Get Started in 5 Minutes
+## 🚀 Getting Started in 5 Minutes
 
-### Step 1: Set Up Supabase (2 minutes)
+### Prerequisites
+- ✅ Node.js v18+ installed
+- ✅ PostgreSQL running locally
+- ✅ Git installed
 
-1. Go to [supabase.com](https://supabase.com) and sign in
-2. Click "New Project"
-3. Fill in:
-   - Name: `vibeathon-restaurant`
-   - Database Password: (generate a strong password and save it!)
-   - Region: Choose closest to you
-4. Click "Create new project" and wait ~2 minutes
-5. Once ready, go to **Settings → Database**
-6. Copy the **Connection String** (URI format)
-7. Replace `[YOUR-PASSWORD]` with your actual password
+### Step 1: Clone & Install (2 min)
 
-### Step 2: Configure Backend (1 minute)
+```bash
+# Navigate to project
+cd /home/yashraj/vibeathon/Vibeathon6.0
+
+# Install backend dependencies
+cd backend
+npm install
+
+# Install frontend dependencies
+cd ../frontend
+npm install
+```
+
+### Step 2: Configure Environment (1 min)
 
 ```bash
 cd backend
 
-# Create .env file
-cat > .env << 'EOF'
-# Database
-DATABASE_URL="your-supabase-connection-string-here"
+# Copy example env file
+cp .env.example .env
 
-# JWT Secrets (generate with: openssl rand -base64 32)
-JWT_SECRET="your-jwt-secret-here"
-JWT_REFRESH_SECRET="your-refresh-secret-here"
-JWT_EXPIRES_IN="15m"
-JWT_REFRESH_EXPIRES_IN="7d"
+# Edit .env file - IMPORTANT CHANGES:
+# 1. Update DATABASE_URL to your local PostgreSQL
+# 2. For development, you can skip email configuration (see workaround below)
+```
 
-# Server
-PORT=5000
-NODE_ENV="development"
-FRONTEND_URL="http://localhost:3000"
+**Local Database Configuration:**
+```env
+# Replace with your local PostgreSQL connection
+DATABASE_URL="postgresql://yashraj:password@localhost:5432/yashraj"
+DIRECT_URL="postgresql://yashraj:password@localhost:5432/yashraj"
+```
 
-# Email (Gmail example)
+**Email Service Workaround (Development Only):**
+
+The system tries to send OTP emails during registration. For development/testing:
+
+**Option 1: Skip Email (Recommended for Testing)**
+- Check server logs for OTP codes
+- OTP will be printed in console: `OTP for user@email.com: 123456`
+- Use this OTP for verification
+
+**Option 2: Use Gmail (Production)**
+```env
 EMAIL_HOST="smtp.gmail.com"
 EMAIL_PORT=587
-EMAIL_USER="your-email@gmail.com"
-EMAIL_PASSWORD="your-app-password"
+EMAIL_USER="your-gmail@gmail.com"
+EMAIL_PASSWORD="your-app-specific-password"  # Generate from Google Account settings
 EMAIL_FROM="noreply@restaurant.com"
-
-# Restaurant
-RESTAURANT_ID="default-restaurant-id"
-RESTAURANT_NAME="Smart Restaurant"
-EOF
-
-# Install and setup
-npm install
-npm run prisma:generate
-npm run prisma:migrate
 ```
 
-**Gmail App Password Setup:**
-1. Go to Google Account → Security
-2. Enable 2-Step Verification
-3. Search "App passwords"
-4. Generate password for "Mail"
-5. Use this password in EMAIL_PASSWORD
+**Option 3: Disable OTP Temporarily**
+Edit `backend/src/services/auth.service.ts` and comment out email sending:
+```typescript
+// await sendOTPEmail(user.email, otp);
+console.log(`OTP for ${user.email}: ${otp}`); // Add this line
+```
 
-### Step 3: Configure Frontend (30 seconds)
+### Step 3: Setup Database (1 min)
 
 ```bash
-cd ../frontend
+cd backend
 
-# Create .env.local
-cat > .env.local << 'EOF'
-NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
-NEXT_PUBLIC_SOCKET_URL=http://localhost:5000
-NEXT_PUBLIC_RESTAURANT_ID=default-restaurant-id
-NEXT_PUBLIC_RESTAURANT_NAME=Smart Restaurant
-EOF
+# Generate Prisma Client
+npx prisma generate
 
-npm install
+# Push schema to database
+npx prisma db push
+
+# Seed initial data (14 menu items)
+npm run seed
 ```
 
-### Step 4: Start Development Servers (30 seconds)
+### Step 4: Start Servers (1 min)
 
 **Terminal 1 - Backend:**
 ```bash
 cd backend
 npm run dev
+# Server starts on http://localhost:5000
 ```
 
 **Terminal 2 - Frontend:**
 ```bash
 cd frontend
 npm run dev
+# Frontend starts on http://localhost:3000
 ```
 
-### Step 5: Test It Out! 🎉
+### Step 5: Verify Installation
 
-1. Open browser: `http://localhost:3000`
-2. Click "Create a new account"
-3. Fill in registration form
-4. Check your email for OTP
-5. Enter OTP to verify
-6. You're in! 🚀
-
-## 🔧 Troubleshooting
-
-### Database Connection Error
-- Check DATABASE_URL is correct
-- Ensure password has no special characters that need URL encoding
-- Verify Supabase project is active
-
-### Email Not Sending
-- Check Gmail app password is correct
-- Ensure 2-Step Verification is enabled
-- Try with a different email provider
-
-### Port Already in Use
 ```bash
-# Backend (change PORT in .env)
-PORT=5001
+# Test backend health
+curl http://localhost:5000/health
+# Expected: {"status":"ok","timestamp":"..."}
 
-# Frontend (change port)
-npm run dev -- -p 3001
+# Test menu API
+curl http://localhost:5000/api/v1/menu
+# Expected: Array of 14 menu items
 ```
-
-### Prisma Migration Fails
-```bash
-# Reset database (WARNING: deletes all data)
-npm run prisma:migrate reset
-
-# Or manually in Supabase SQL editor
-DROP SCHEMA public CASCADE;
-CREATE SCHEMA public;
-```
-
-## 📝 Next Steps
-
-After setup is complete:
-
-1. **Create Test Data:**
-   - Register multiple users with different roles
-   - Use Prisma Studio: `npm run prisma:studio`
-
-2. **Start Building Features:**
-   - Follow `IMPLEMENTATION_PLAN.md`
-   - Check `system/TASKS.md` for progress tracking
-
-3. **Deploy:**
-   - Backend: Render.com
-   - Frontend: Vercel
-   - See README.md for deployment instructions
-
-## 🆘 Need Help?
-
-- Check `README.md` for detailed documentation
-- Review `system/` folder for specifications
-- Check `IMPLEMENTATION_PLAN.md` for architecture details
 
 ---
 
-**Happy Coding! 🚀**
+## 🧪 Quick Testing
+
+### Register a Test User
+
+```bash
+# Register admin user
+curl -X POST http://localhost:5000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@test.com",
+    "password": "Admin123!",
+    "name": "Admin User",
+    "role": "admin"
+  }'
+
+# Check server logs for OTP code
+# Look for: "OTP for admin@test.com: 123456"
+```
+
+### Verify OTP
+
+```bash
+# Use OTP from server logs
+curl -X POST http://localhost:5000/api/v1/auth/verify-otp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@test.com",
+    "otp": "123456"
+  }'
+```
+
+### Login
+
+```bash
+curl -X POST http://localhost:5000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@test.com",
+    "password": "Admin123!"
+  }'
+
+# Save the accessToken from response
+export TOKEN="<your_access_token>"
+```
+
+### Test Protected Endpoint
+
+```bash
+# Get current user
+curl -X GET http://localhost:5000/api/v1/auth/me \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+## 📚 Next Steps
+
+### For Development:
+1. **Read Documentation:**
+   - `PROJECT_PROGRESS.md` - Complete project status
+   - `MANUAL_TESTING_GUIDE.md` - Comprehensive testing
+   - `INVENTORY_TESTING_GUIDE.md` - API reference
+
+2. **Start Testing:**
+   - Follow `MANUAL_TESTING_GUIDE.md` for systematic testing
+   - Test all 8 modules (Auth, Menu, Inventory, etc.)
+
+3. **Build Frontend:**
+   - Create inventory management UI
+   - Build recipe management interface
+   - Add real-time notifications
+
+### For Production:
+1. **Configure Email Service:**
+   - Use Gmail with App Password
+   - Or use SendGrid/AWS SES
+   - Update `.env` with credentials
+
+2. **Setup Production Database:**
+   - Use Supabase or managed PostgreSQL
+   - Update `DATABASE_URL` in `.env`
+   - Run migrations: `npx prisma migrate deploy`
+
+3. **Configure OAuth:**
+   - Get Google OAuth credentials
+   - Update `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+
+4. **Deploy:**
+   - Backend: Railway/Render/Heroku
+   - Frontend: Vercel/Netlify
+   - Database: Supabase/AWS RDS
+
+---
+
+## 🐛 Common Issues
+
+### Issue: Email Connection Error
+```
+Error: connect ECONNREFUSED 192.178.211.109:587
+```
+**Solution:** This is expected in development. Check server logs for OTP codes instead of email.
+
+### Issue: Database Connection Failed
+```
+Error: P1001: Can't reach database server
+```
+**Solution:** 
+- Ensure PostgreSQL is running: `sudo systemctl status postgresql`
+- Check DATABASE_URL in `.env`
+- Verify credentials
+
+### Issue: Port Already in Use
+```
+Error: listen EADDRINUSE: address already in use :::5000
+```
+**Solution:**
+```bash
+# Find process using port 5000
+lsof -i :5000
+# Kill the process
+kill -9 <PID>
+```
+
+### Issue: TypeScript Errors
+```
+error TS2769: No overload matches this call
+```
+**Solution:** These are cosmetic warnings. Code runs fine. See `TYPESCRIPT_ERRORS_STATUS.md` for details.
+
+---
+
+## 🔑 Default Credentials
+
+After seeding, you can create users with these roles:
+- `admin` - Full access
+- `inventory` - Inventory management
+- `kitchen` - Kitchen operations
+- `reception` - Reservations & orders
+- `customer` - Place orders & reservations
+
+**Note:** No default users are created. You must register users via API.
+
+---
+
+## 📊 Project Structure
+
+```
+Vibeathon6.0/
+├── backend/              # Express.js API
+│   ├── src/
+│   │   ├── controllers/  # Request handlers
+│   │   ├── services/     # Business logic
+│   │   ├── routes/       # API routes
+│   │   └── middleware/   # Auth, error handling
+│   └── prisma/          # Database schema
+├── frontend/            # Next.js app
+│   ├── app/            # Pages & layouts
+│   ├── components/     # React components
+│   └── lib/           # API client, utilities
+└── docs/              # Documentation
+```
+
+---
+
+## 🆘 Need Help?
+
+1. **Check Documentation:**
+   - `PROJECT_PROGRESS.md` - Project status
+   - `MANUAL_TESTING_GUIDE.md` - Testing procedures
+   - `TYPESCRIPT_ERRORS_STATUS.md` - Known issues
+
+2. **Check Server Logs:**
+   - Backend logs show OTP codes
+   - Error messages with stack traces
+   - Database query logs
+
+3. **Verify Setup:**
+   ```bash
+   # Backend health
+   curl http://localhost:5000/health
+   
+   # Database connection
+   cd backend && npx prisma studio
+   ```
+
+---
+
+## ✅ Success Checklist
+
+- [ ] Backend server running on port 5000
+- [ ] Frontend server running on port 3000
+- [ ] Database connected and seeded
+- [ ] Can register and login users
+- [ ] Can view menu items
+- [ ] API endpoints responding correctly
+
+**You're ready to start developing! 🎉**

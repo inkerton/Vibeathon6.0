@@ -1,3 +1,4 @@
+import { getRouteParam } from '../utils/route-helpers';
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ReservationService } from '../services/reservation.service';
@@ -72,7 +73,7 @@ export class ReservationController {
 
   async getReservationById(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = getRouteParam(req, 'id');
       const reservation = await reservationService.getReservationById(id);
 
       res.status(200).json({
@@ -126,7 +127,7 @@ export class ReservationController {
 
   async updateReservationStatus(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = getRouteParam(req, 'id');
       const validatedData = updateStatusSchema.parse(req.body);
 
       const reservation = await reservationService.updateReservationStatus(id, validatedData.status);
@@ -140,7 +141,7 @@ export class ReservationController {
       });
 
       // Notify customer
-      io.to(`user:${reservation.user_id}`).emit('reservation:status_updated', {
+      io.to(`user:${reservation.customer_id}`).emit('reservation:status_updated', {
         reservationId: reservation.id,
         status: reservation.status,
       });
@@ -163,7 +164,7 @@ export class ReservationController {
         throw new AppError('User not authenticated', 401);
       }
 
-      const { id } = req.params;
+      const id = getRouteParam(req, 'id');
       const reservation = await reservationService.cancelReservation(id, req.user.id);
 
       // Broadcast cancellation via Socket.io

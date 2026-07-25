@@ -11,6 +11,8 @@ const transporter = nodemailer.createTransport({
 });
 
 export const sendOTPEmail = async (email: string, otp: string): Promise<void> => {
+  console.log({otp});
+  
   const mailOptions = {
     from: process.env.EMAIL_FROM || 'noreply@restaurant.com',
     to: email,
@@ -39,6 +41,7 @@ export const sendOTPEmail = async (email: string, otp: string): Promise<void> =>
 
 export const sendReservationConfirmation = async (
   email: string,
+  name: string,
   reservationDetails: {
     date: string;
     time: string;
