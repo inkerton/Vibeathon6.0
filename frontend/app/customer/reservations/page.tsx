@@ -23,11 +23,20 @@ interface Reservation {
   };
 }
 
+interface Table {
+  id: string;
+  table_number: number;
+  capacity: number;
+  status: string;
+}
+
 export default function CustomerReservations() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ date: '', time: '', party_size: 2, special_requests: '' });
+  const [formData, setFormData] = useState({ date: '', time: '', party_size: 2, special_requests: '', table_id: '' });
+  const [availableTables, setAvailableTables] = useState<Table[]>([]);
+  const [loadingTables, setLoadingTables] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' as 'success' | 'error' });
 
   useEffect(() => {
@@ -45,22 +54,50 @@ export default function CustomerReservations() {
     }
   };
 
-  const createReservation = async () => {
+  const fetchAvailableTables = async () => {
     if (!formData.date || !formData.time) {
-      setToast({ show: true, message: 'Please fill all required fields', type: 'error' });
+      return;
+    }
+
+    setLoadingTables(true);
+    try {
+      const response = await apiClient.get('/reservations/available-tables', {
+        params: {
+          date: formData.date,
+          time: formData.time,
+          party_size: formData.party_size
+        }
+      });
+      setAvailableTables(response.data?.data || []);
+      if (response.data?.data?.length === 0) {
+        setToast({ show: true, message: 'No tables available for this time slot', type: 'error' });
+      }
+    } catch (err: any) {
+      setToast({ show: true, message: 'Failed to fetch available tables', type: 'error' });
+      setAvailableTables([]);
+    } finally {
+      setLoadingTables(false);
+    }
+  };
+
+  const createReservation = async () => {
+    if (!formData.date || !formData.time || !formData.table_id) {
+      setToast({ show: true, message: 'Please fill all required fields and select a table', type: 'error' });
       return;
     }
 
     try {
-      const dateTime = new Date(`${formData.date}T${formData.time}:00`).toISOString();
       await apiClient.post('/reservations', {
-        date: dateTime,
+        table_id: formData.table_id,
+        reservation_date: formData.date,
+        reservation_time: formData.time,
         party_size: formData.party_size,
         special_requests: formData.special_requests || undefined
       });
       setToast({ show: true, message: 'Reservation created successfully', type: 'success' });
       setShowModal(false);
-      setFormData({ date: '', time: '', party_size: 2, special_requests: '' });
+      setFormData({ date: '', time: '', party_size: 2, special_requests: '', table_id: '' });
+      setAvailableTables([]);
       fetchReservations();
     } catch (err: any) {
       setToast({ show: true, message: err.response?.data?.message || 'Failed to create reservation', type: 'error' });
@@ -130,14 +167,14 @@ export default function CustomerReservations() {
         )}
       </div>
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="New Reservation">
+      <Modal isOpen={showModal} onClose={() => { setShowModal(false); setAvailableTables([]); setFormData({ date: '', time: '', party_size: 2, special_requests: '', table_id: '' }); }} title="New Reservation">
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-2">Date *</label>
             <input
               type="date"
               value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              onChange={(e) => { setFormData({ ...formData, date: e.target.value, table_id: '' }); setAvailableTables([]); }}
               className="input w-full"
               min={new Date().toISOString().split('T')[0]}
             />
@@ -147,7 +184,7 @@ export default function CustomerReservations() {
             <input
               type="time"
               value={formData.time}
-              onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+              onChange={(e) => { setFormData({ ...formData, time: e.target.value, table_id: '' }); setAvailableTables([]); }}
               className="input w-full"
             />
           </div>
@@ -156,12 +193,48 @@ export default function CustomerReservations() {
             <input
               type="number"
               value={formData.party_size}
-              onChange={(e) => setFormData({ ...formData, party_size: parseInt(e.target.value) })}
+              onChange={(e) => { setFormData({ ...formData, party_size: parseInt(e.target.value), table_id: '' }); setAvailableTables([]); }}
               className="input w-full"
               min="1"
               max="20"
             />
           </div>
+          
+          {formData.date && formData.time && (
+            <div>
+              <Button 
+                onClick={fetchAvailableTables} 
+                variant="secondary" 
+                className="w-full mb-2"
+                disabled={loadingTables}
+              >
+                {loadingTables ? 'Checking...' : 'Check Available Tables'}
+              </Button>
+            </div>
+          )}
+
+          {availableTables.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium mb-2">Select Table *</label>
+              <div className="grid grid-cols-2 gap-2">
+                {availableTables.map(table => (
+                  <button
+                    key={table.id}
+                    onClick={() => setFormData({ ...formData, table_id: table.id })}
+                    className={`p-3 border rounded-lg text-center transition-colors ${
+                      formData.table_id === table.id 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-semibold">Table {table.table_number}</div>
+                    <div className="text-sm text-gray-600">Capacity: {table.capacity}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium mb-2">Special Requests</label>
             <textarea
@@ -171,7 +244,13 @@ export default function CustomerReservations() {
               rows={3}
             />
           </div>
-          <Button onClick={createReservation} className="w-full">Create Reservation</Button>
+          <Button 
+            onClick={createReservation} 
+            className="w-full"
+            disabled={!formData.table_id}
+          >
+            Create Reservation
+          </Button>
         </div>
       </Modal>
     </div>
