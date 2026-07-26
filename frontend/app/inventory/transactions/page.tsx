@@ -51,14 +51,14 @@ export default function InventoryTransactions() {
   };
 
   const getTypeBadge = (type: string) => {
-    const variants: Record<string, { variant: 'success' | 'warning' | 'danger' | 'info' | 'secondary', label: string }> = {
+    const variants: Record<string, { variant: 'success' | 'warning' | 'danger' | 'info' | 'gray', label: string }> = {
       restock: { variant: 'success', label: 'Restock' },
       adjustment: { variant: 'warning', label: 'Adjustment' },
       reserve: { variant: 'info', label: 'Reserved' },
       deduct: { variant: 'danger', label: 'Deducted' },
-      release: { variant: 'secondary', label: 'Released' },
+      release: { variant: 'gray', label: 'Released' },
     };
-    return variants[type] || { variant: 'secondary', label: type };
+    return variants[type] || { variant: 'gray', label: type };
   };
 
   const formatDate = (dateString: string) => {

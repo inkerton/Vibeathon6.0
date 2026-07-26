@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
@@ -9,6 +9,10 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { Toast } from '@/components/Toast';
 import { apiClient } from '@/lib/api-client';
+import {
+  MaterialReactTable,
+  type MRT_ColumnDef,
+} from "material-react-table";
 
 interface MenuItem {
   id: string;
@@ -49,7 +53,7 @@ export default function MenuManagement() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' as 'success' | 'error' });
-  const [filterCategory, setFilterCategory] = useState<string>('all');
+  // const [filterCategory, setFilterCategory] = useState<string>('all');
 
   useEffect(() => {
     fetchMenuItems();
@@ -167,9 +171,133 @@ export default function MenuManagement() {
     return variants[category] || 'gray';
   };
 
-  const filteredItems = filterCategory === 'all' 
-    ? menuItems 
-    : menuItems.filter(item => item.category === filterCategory);
+  // const filteredItems = filterCategory === 'all' 
+  //   ? menuItems 
+  //   : menuItems.filter(item => item.category === filterCategory);
+
+  const columns = useMemo<MRT_ColumnDef<MenuItem>[]>(
+    () => [
+      {
+        accessorKey: "imageUrl",
+        header: "Image",
+        enableSorting: false,
+        Cell: ({ row }) =>
+          row.original.imageUrl ? (
+            <img
+              src={row.original.imageUrl}
+              alt={row.original.name}
+              style={{
+                width: 60,
+                height: 60,
+                objectFit: "cover",
+                borderRadius: 8,
+              }}
+            />
+          ) : (
+            <div className="w-[60px] h-[60px] bg-gray-200 rounded" />
+          ),
+      },
+
+      {
+        accessorKey: "name",
+        header: "Name",
+      },
+
+      {
+        accessorKey: "category",
+        header: "Category",
+        Cell: ({ row }) => (
+          <Badge variant={getCategoryBadgeVariant(row.original.category)}>
+            {row.original.category.replace("_", " ").toUpperCase()}
+          </Badge>
+        ),
+      },
+
+      {
+        accessorKey: "price",
+        header: "Price",
+        Cell: ({ cell }) => `₹${cell.getValue<number>()}`,
+      },
+
+      {
+        accessorKey: "preparationTime",
+        header: "Prep Time",
+        Cell: ({ cell }) => `${cell.getValue<number>()} min`,
+      },
+
+      {
+        accessorKey: "isAvailable",
+        header: "Status",
+        Cell: ({ row }) => (
+          <Badge
+            variant={
+              row.original.isAvailable
+                ? "success"
+                : "gray"
+            }
+          >
+            {row.original.isAvailable
+              ? "Available"
+              : "Unavailable"}
+          </Badge>
+        ),
+      },
+
+      {
+        id: "actions",
+        header: "Actions",
+        enableSorting: false,
+        enableColumnFilter: false,
+
+        Cell: ({ row }) => (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => handleOpenModal(row.original)}
+            >
+              Edit
+            </Button>
+
+            <Button
+              size="sm"
+              variant={
+                row.original.isAvailable
+                  ? "danger"
+                  : "success"
+              }
+              onClick={() =>
+                handleToggleAvailability(
+                  row.original.id,
+                  row.original.isAvailable
+                )
+              }
+            >
+              {row.original.isAvailable
+                ? "Disable"
+                : "Enable"}
+            </Button>
+
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() =>
+                handleDelete(row.original.id)
+              }
+            >
+              Delete
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [
+      handleDelete,
+      handleOpenModal,
+      handleToggleAvailability,
+      getCategoryBadgeVariant,
+    ]
+  );
 
   if (loading) {
     return <LoadingSpinner size="lg" className="py-20" />;
@@ -197,7 +325,7 @@ export default function MenuManagement() {
       {error && <ErrorMessage message={error} />}
 
       {/* Category Filter */}
-      <Card>
+      {/* <Card>
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setFilterCategory('all')}
@@ -223,96 +351,30 @@ export default function MenuManagement() {
             </button>
           ))}
         </div>
-      </Card>
+      </Card> */}
 
       <Card>
-        <div className="overflow-x-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Image</th>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Price</th>
-                <th>Prep Time</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredItems.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-8 text-gray-500">
-                    No menu items found. Create your first menu item.
-                  </td>
-                </tr>
-              ) : (
-                filteredItems.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      {item.imageUrl ? (
-                        <img 
-                          src={item.imageUrl} 
-                          alt={item.name}
-                          className="w-16 h-16 object-cover rounded"
-                        />
-                      ) : (
-                        <div className="w-16 h-16 bg-gray-200 rounded flex items-center justify-center">
-                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <div>
-                        <div className="font-medium">{item.name}</div>
-                        <div className="text-sm text-gray-500">{item.description}</div>
-                      </div>
-                    </td>
-                    <td>
-                      <Badge variant={getCategoryBadgeVariant(item.category)}>
-                        {item.category.replace('_', ' ').toUpperCase()}
-                      </Badge>
-                    </td>
-                    <td className="font-medium">₹{item.price}</td>
-                    <td>{item.preparationTime} min</td>
-                    <td>
-                      <Badge variant={item.isAvailable ? 'success' : 'gray'}>
-                        {item.isAvailable ? 'Available' : 'Unavailable'}
-                      </Badge>
-                    </td>
-                    <td>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleOpenModal(item)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={item.isAvailable ? 'danger' : 'success'}
-                          onClick={() => handleToggleAvailability(item.id, item.isAvailable)}
-                        >
-                          {item.isAvailable ? 'Disable' : 'Enable'}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={() => handleDelete(item.id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <MaterialReactTable
+          columns={columns}
+          data={menuItems}
+          enableColumnOrdering
+          enableColumnPinning
+          enableSorting
+          enablePagination
+          enableGlobalFilter
+          enableColumnFilters
+          enableDensityToggle
+          enableFullScreenToggle
+          enableHiding
+          positionGlobalFilter="left"
+          initialState={{
+            showGlobalFilter: true,
+            density: "comfortable",
+            pagination: {
+              pageSize: 10,
+            },
+          }}
+        />
       </Card>
 
       {/* Create/Edit Modal */}

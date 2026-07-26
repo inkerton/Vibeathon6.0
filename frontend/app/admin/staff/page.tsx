@@ -228,18 +228,18 @@ export default function StaffManagement() {
                       </Badge>
                     </td>
                     <td>
-                      <Badge variant={member.is_active ? 'success' : 'gray'}>
-                        {member.is_active ? 'Active' : 'Inactive'}
+                      <Badge variant={member.isActive ? 'success' : 'gray'}>
+                        {member.isActive ? 'Active' : 'Inactive'}
                       </Badge>
                     </td>
-                    <td>{new Date(member.created_at).toLocaleDateString()}</td>
+                    <td>{new Date(member.createdAt).toLocaleDateString()}</td>
                     <td>
                       <Button
                         size="sm"
-                        variant={member.is_active ? 'danger' : 'success'}
-                        onClick={() => handleToggleActive(member.id, member.is_active)}
+                        variant={member.isActive ? 'danger' : 'success'}
+                        onClick={() => handleToggleActive(member.id, member.isActive)}
                       >
-                        {member.is_active ? 'Deactivate' : 'Activate'}
+                        {member.isActive ? 'Deactivate' : 'Activate'}
                       </Button>
                     </td>
                   </tr>

@@ -125,7 +125,7 @@ export default function CustomerMenu() {
                     <div className="flex gap-2 mb-2">
                       {item.is_vegetarian && <Badge variant="success">VEG</Badge>}
                       {item.is_vegan && <Badge variant="info">VEGAN</Badge>}
-                      <Badge variant="secondary">{item.preparation_time} min</Badge>
+                      <Badge variant="info">{item.preparation_time} min</Badge>
                     </div>
                     <Button size="sm" onClick={() => addToCart(item)}>Add to Cart</Button>
                   </div>

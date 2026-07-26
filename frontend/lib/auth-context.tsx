@@ -4,11 +4,13 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import apiClient from './api-client';
 import socketClient from './socket-client';
 
+export type Role = 'customer' | 'reception' | 'kitchen' | 'inventory' | 'admin';
+
 interface User {
   id: string;
   name: string;
   email: string;
-  role: 'customer' | 'reception' | 'kitchen' | 'inventory' | 'admin';
+  role: Role;
 }
 
 interface AuthContextType {

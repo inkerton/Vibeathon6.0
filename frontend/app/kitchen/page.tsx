@@ -233,14 +233,14 @@ export default function KitchenDashboard() {
                               <p className="font-medium">
                         {item.quantity}x {item.menu_item.name}
                               </p>
-                              {item.customInstructions && (
+                              {item.custom_instructions && (
                                 <p className="text-sm text-gray-600 mt-1">
-                                  Note: {item.customInstructions}
+                                  Note: {item.custom_instructions}
                                 </p>
                               )}
-                              {item.allergyInfo && (
+                              {item.allergy_info && (
                                 <p className="text-sm text-red-600 font-medium mt-1">
-                                  ⚠️ Allergy: {item.allergyInfo}
+                                  ⚠️ Allergy: {item.allergy_info}
                                 </p>
                               )}
                             </div>

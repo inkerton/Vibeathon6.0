@@ -2,7 +2,7 @@ export interface MockMenuItem {
   id: string;
   name: string;
   description: string;
-  category: 'starters' | 'main_course' | 'desserts' | 'beverages';
+  category: 'appetizer' | 'main_course' | 'dessert' | 'beverage';
   price: number;
   imageUrl: string;
   isAvailable: boolean;
@@ -16,7 +16,7 @@ export const mockMenuItems: MockMenuItem[] = [
     id: 'menu-1',
     name: 'Bruschetta',
     description: 'Toasted bread topped with fresh tomatoes, garlic, basil, and olive oil',
-    category: 'starters',
+    category: 'appetizer',
     price: 8.99,
     imageUrl: 'https://images.unsplash.com/photo-1572695157366-5e585ab2b69f?w=400',
     isAvailable: true,
@@ -27,7 +27,7 @@ export const mockMenuItems: MockMenuItem[] = [
     id: 'menu-2',
     name: 'Caesar Salad',
     description: 'Crisp romaine lettuce with parmesan, croutons, and Caesar dressing',
-    category: 'starters',
+    category: 'appetizer',
     price: 9.99,
     imageUrl: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=400',
     isAvailable: true,
@@ -38,7 +38,7 @@ export const mockMenuItems: MockMenuItem[] = [
     id: 'menu-3',
     name: 'Garlic Bread',
     description: 'Freshly baked bread with garlic butter and herbs',
-    category: 'starters',
+    category: 'appetizer',
     price: 5.99,
     imageUrl: 'https://images.unsplash.com/photo-1573140401552-388e3ead0b5e?w=400',
     isAvailable: true,
@@ -49,7 +49,7 @@ export const mockMenuItems: MockMenuItem[] = [
     id: 'menu-4',
     name: 'Mozzarella Sticks',
     description: 'Crispy fried mozzarella with marinara sauce',
-    category: 'starters',
+    category: 'appetizer',
     price: 7.99,
     imageUrl: 'https://images.unsplash.com/photo-1531749668029-2db88e4276c7?w=400',
     isAvailable: true,
@@ -60,7 +60,7 @@ export const mockMenuItems: MockMenuItem[] = [
     id: 'menu-5',
     name: 'Soup of the Day',
     description: 'Chef\'s special homemade soup',
-    category: 'starters',
+    category: 'appetizer',
     price: 6.99,
     imageUrl: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400',
     isAvailable: true,
@@ -163,7 +163,7 @@ export const mockMenuItems: MockMenuItem[] = [
     id: 'menu-14',
     name: 'Tiramisu',
     description: 'Classic Italian dessert with coffee and mascarpone',
-    category: 'desserts',
+    category: 'dessert',
     price: 7.99,
     imageUrl: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400',
     isAvailable: true,
@@ -174,7 +174,7 @@ export const mockMenuItems: MockMenuItem[] = [
     id: 'menu-15',
     name: 'Chocolate Lava Cake',
     description: 'Warm chocolate cake with molten center',
-    category: 'desserts',
+    category: 'dessert',
     price: 8.99,
     imageUrl: 'https://images.unsplash.com/photo-1624353365286-3f8d62daad51?w=400',
     isAvailable: true,
@@ -185,7 +185,7 @@ export const mockMenuItems: MockMenuItem[] = [
     id: 'menu-16',
     name: 'Cheesecake',
     description: 'New York style cheesecake with berry compote',
-    category: 'desserts',
+    category: 'dessert',
     price: 7.99,
     imageUrl: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=400',
     isAvailable: true,
@@ -196,7 +196,7 @@ export const mockMenuItems: MockMenuItem[] = [
     id: 'menu-17',
     name: 'Ice Cream Sundae',
     description: 'Three scoops with toppings and whipped cream',
-    category: 'desserts',
+    category: 'dessert',
     price: 6.99,
     imageUrl: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400',
     isAvailable: true,
@@ -209,7 +209,7 @@ export const mockMenuItems: MockMenuItem[] = [
     id: 'menu-18',
     name: 'Coca Cola',
     description: 'Classic soft drink',
-    category: 'beverages',
+    category: 'beverage',
     price: 2.99,
     imageUrl: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?w=400',
     isAvailable: true,
@@ -220,7 +220,7 @@ export const mockMenuItems: MockMenuItem[] = [
     id: 'menu-19',
     name: 'Fresh Orange Juice',
     description: 'Freshly squeezed orange juice',
-    category: 'beverages',
+    category: 'beverage',
     price: 4.99,
     imageUrl: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=400',
     isAvailable: true,
@@ -231,7 +231,7 @@ export const mockMenuItems: MockMenuItem[] = [
     id: 'menu-20',
     name: 'Cappuccino',
     description: 'Espresso with steamed milk and foam',
-    category: 'beverages',
+    category: 'beverage',
     price: 3.99,
     imageUrl: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=400',
     isAvailable: true,
@@ -242,7 +242,7 @@ export const mockMenuItems: MockMenuItem[] = [
     id: 'menu-21',
     name: 'Iced Tea',
     description: 'Refreshing iced tea with lemon',
-    category: 'beverages',
+    category: 'beverage',
     price: 2.99,
     imageUrl: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400',
     isAvailable: true,
@@ -253,7 +253,7 @@ export const mockMenuItems: MockMenuItem[] = [
     id: 'menu-22',
     name: 'Mineral Water',
     description: 'Still or sparkling water',
-    category: 'beverages',
+    category: 'beverage',
     price: 1.99,
     imageUrl: 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=400',
     isAvailable: true,
@@ -262,4 +262,4 @@ export const mockMenuItems: MockMenuItem[] = [
   }
 ];
 
-export const mockCategories = ['starters', 'main_course', 'desserts', 'beverages'];
+export const mockCategories = ['appetizer', 'main_course', 'dessert', 'beverage'];

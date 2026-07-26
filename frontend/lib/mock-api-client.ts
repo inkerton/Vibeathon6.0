@@ -474,7 +474,7 @@ class MockApiClient {
 
   private async getMenu() {
     return this.mockRequest(() => {
-      return mockState.getMenuItems();
+      return { data: mockState.getMenuItems() };
     });
   }
 
