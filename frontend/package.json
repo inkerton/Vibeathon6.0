@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "next dev",
     "dev:mock": "cross-env NEXT_PUBLIC_API_MODE=mock next dev -p 3001",
-    "dev:live": "cross-env NEXT_PUBLIC_API_MODE=live next dev -p 3001",
+    "dev:live": "cross-env NEXT_PUBLIC_API_MODE=live next dev",
     "build": "next build",
     "build:mock": "cross-env NEXT_PUBLIC_API_MODE=mock next build",
-    "start": "next start -p 3001",
-    "start:mock": "cross-env NEXT_PUBLIC_API_MODE=mock next start -p 3001",
+    "start": "next start",
+    "start:mock": "cross-env NEXT_PUBLIC_API_MODE=mock next start",
     "lint": "eslint"
   },
   "dependencies": {
