@@ -47,10 +47,23 @@ export default function AdminInventoryOverview() {
         apiClient.get('/inventory/low-stock'),
       ]);
 
-      const items = inventoryRes.data || [];
-      const lowStock = lowStockRes.data || [];
+      // Handle backend response structure: { status: 'success', data: [...] }
+      const items = Array.isArray(inventoryRes.data?.data) ? inventoryRes.data.data : (Array.isArray(inventoryRes.data) ? inventoryRes.data : []);
+      const lowStock = Array.isArray(lowStockRes.data?.data) ? lowStockRes.data.data : (Array.isArray(lowStockRes.data) ? lowStockRes.data : []);
       
-      setInventory(items);
+      // Transform backend snake_case to frontend camelCase
+      const transformedItems = items.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        unit: item.unit,
+        totalQuantity: item.total_stock || 0,
+        reservedQuantity: item.reserved_stock || 0,
+        availableQuantity: (item.total_stock || 0) - (item.reserved_stock || 0),
+        reorderLevel: item.reorder_threshold || 0,
+        reorderQuantity: item.reorder_quantity || 0,
+      }));
+      
+      setInventory(transformedItems);
       
       // Calculate summary
       const outOfStock = items.filter((item: InventoryItem) => item.availableQuantity === 0);

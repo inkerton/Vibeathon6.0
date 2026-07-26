@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (token) {
         try {
           const response = await apiClient.get('/auth/me');
-          const userData = response.data;
+          const userData = response.data.data;
           setUser(userData);
           
           // Connect socket with token

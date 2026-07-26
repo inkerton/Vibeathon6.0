@@ -7,3 +7,6 @@ export * from './inventory';
 export * from './recipes';
 export * from './staff';
 export * from './transactions';
+export * from './tables';
+export * from './waitlist';
+export * from './analytics';

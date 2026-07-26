@@ -12,27 +12,35 @@ import { apiClient } from '@/lib/api-client';
 
 interface Reservation {
   id: string;
-  customerName: string;
-  customerPhone: string;
-  customerEmail: string;
+  customer_id: string;
+  table_id: string;
   date: string;
-  time: string;
-  numberOfGuests: number;
-  tableNumber: number | null;
+  party_size: number;
   status: 'pending' | 'confirmed' | 'seated' | 'completed' | 'cancelled';
-  specialRequests: string | null;
-  createdAt: string;
+  special_requests: string | null;
+  created_at: string;
+  customer?: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+  };
+  table?: {
+    id: string;
+    table_number: number;
+  };
 }
 
 interface Order {
   id: string;
-  orderNumber: string;
-  tableNumber: number | null;
-  status: string;
-  totalAmount: number;
-  paymentStatus: 'pending' | 'paid';
+  order_status: string;
+  total_amount: string;
+  payment_status: string;
   customer: {
     name: string;
+  };
+  table: {
+    table_number: number;
   };
 }
 
@@ -55,13 +63,18 @@ export default function ReceptionDashboard() {
   const fetchData = async () => {
     try {
       setError('');
+      console.log('[Reception] Fetching data...');
       const [reservationsRes, ordersRes] = await Promise.all([
         apiClient.get('/reservations'),
         apiClient.get('/orders/active'),
       ]);
-      setReservations(reservationsRes.data || []);
-      setOrders(ordersRes.data || []);
+      console.log('[Reception] Reservations response:', reservationsRes.data);
+      console.log('[Reception] Orders response:', ordersRes.data);
+      setReservations(reservationsRes.data?.data || []);
+      setOrders(ordersRes.data?.data || []);
+      console.log('[Reception] Data loaded successfully');
     } catch (err: any) {
+      console.error('[Reception] Error fetching data:', err);
       setError(err.message || 'Failed to load data');
     } finally {
       setLoading(false);
@@ -81,11 +94,21 @@ export default function ReceptionDashboard() {
 
   const updatePaymentStatus = async (orderId: string) => {
     try {
-      await apiClient.patch(`/orders/${orderId}/payment`, { paymentStatus: 'paid' });
+      await apiClient.patch(`/orders/${orderId}/payment`, { payment_status: 'paid' });
       setToast({ show: true, message: 'Payment marked as paid', type: 'success' });
       fetchData();
     } catch (err: any) {
       setToast({ show: true, message: err.message || 'Failed to update payment', type: 'error' });
+    }
+  };
+
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      await apiClient.patch(`/orders/${orderId}/status`, { status: newStatus });
+      setToast({ show: true, message: `Order marked as ${newStatus}`, type: 'success' });
+      fetchData();
+    } catch (err: any) {
+      setToast({ show: true, message: err.message || 'Failed to update order status', type: 'error' });
     }
   };
 
@@ -107,7 +130,7 @@ export default function ReceptionDashboard() {
 
   const getTodayReservations = () => {
     const today = new Date().toISOString().split('T')[0];
-    return reservations.filter(r => r.date.startsWith(today) && r.status !== 'cancelled');
+    return reservations.filter(r => r.date && r.date.startsWith(today) && r.status !== 'cancelled');
   };
 
   const filteredReservations = filterStatus === 'all' 
@@ -193,7 +216,7 @@ export default function ReceptionDashboard() {
               <div>
                 <p className="text-sm text-gray-600 font-medium">Pending Payments</p>
                 <p className="text-3xl font-bold text-red-600 mt-2">
-                  {orders.filter(o => o.paymentStatus === 'pending').length}
+                  {orders.filter(o => o.payment_status === 'pending_at_table' || o.payment_status === 'unpaid').length}
                 </p>
               </div>
               <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
@@ -257,11 +280,11 @@ export default function ReceptionDashboard() {
                 ) : (
                   filteredReservations.map((reservation) => (
                     <tr key={reservation.id}>
-                      <td className="font-medium">{reservation.time}</td>
-                      <td>{reservation.customerName}</td>
-                      <td className="text-sm text-gray-600">{reservation.customerPhone}</td>
-                      <td>{reservation.numberOfGuests}</td>
-                      <td>{reservation.tableNumber || '-'}</td>
+                      <td className="font-medium">{new Date(reservation.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</td>
+                      <td>{reservation.customer?.name || 'N/A'}</td>
+                      <td className="text-sm text-gray-600">{reservation.customer?.phone || 'N/A'}</td>
+                      <td>{reservation.party_size}</td>
+                      <td>{reservation.table?.table_number || '-'}</td>
                       <td>
                         <Badge variant={getStatusBadge(reservation.status)}>
                           {reservation.status.toUpperCase()}
@@ -295,6 +318,64 @@ export default function ReceptionDashboard() {
           </div>
         </Card>
 
+        {/* Active Orders Section */}
+        <Card title="Active Orders">
+          <div className="overflow-x-auto">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Table</th>
+                  <th>Customer</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-gray-500">
+                      No active orders
+                    </td>
+                  </tr>
+                ) : (
+                  orders.map((order) => (
+                    <tr key={order.id}>
+                      <td className="font-medium">#{order.id.slice(-8)}</td>
+                      <td>Table {order.table.table_number}</td>
+                      <td>{order.customer.name}</td>
+                      <td className="font-bold">₹{Number(order.total_amount).toFixed(2)}</td>
+                      <td>
+                        <Badge variant={
+                          order.order_status === 'ready' ? 'success' : 
+                          order.order_status === 'preparing' ? 'info' : 'warning'
+                        }>
+                          {order.order_status.toUpperCase()}
+                        </Badge>
+                      </td>
+                      <td>
+                        {order.order_status === 'ready' && (
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={() => updateOrderStatus(order.id, 'served')}
+                          >
+                            Mark as Served
+                          </Button>
+                        )}
+                        {order.order_status === 'served' && (
+                          <span className="text-sm text-green-600">✓ Served</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
         {/* Pending Payments Section */}
         <Card title="Pending Payments">
           <div className="overflow-x-auto">
@@ -310,7 +391,7 @@ export default function ReceptionDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {orders.filter(o => o.paymentStatus === 'pending').length === 0 ? (
+                {orders.filter(o => o.payment_status === 'pending_at_table' || o.payment_status === 'unpaid').length === 0 ? (
                   <tr>
                     <td colSpan={6} className="text-center py-8 text-gray-500">
                       No pending payments
@@ -318,13 +399,13 @@ export default function ReceptionDashboard() {
                   </tr>
                 ) : (
                   orders
-                    .filter(o => o.paymentStatus === 'pending')
+                    .filter(o => o.payment_status === 'pending_at_table' || o.payment_status === 'unpaid')
                     .map((order) => (
                       <tr key={order.id}>
-                        <td className="font-medium">#{order.orderNumber}</td>
-                        <td>Table {order.tableNumber || 'N/A'}</td>
+                        <td className="font-medium">#{order.id.slice(-8)}</td>
+                        <td>Table {order.table.table_number}</td>
                         <td>{order.customer.name}</td>
-                        <td className="font-bold">₹{order.totalAmount.toFixed(2)}</td>
+                      <td className="font-bold">₹{Number(order.total_amount).toFixed(2)}</td>
                         <td>
                           <Badge variant="warning">PENDING</Badge>
                         </td>
@@ -379,33 +460,33 @@ export default function ReceptionDashboard() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-700">Customer Name</label>
-              <p className="text-lg">{selectedReservation.customerName}</p>
+              <p className="text-lg">{selectedReservation.customer?.name || 'N/A'}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700">Contact</label>
-              <p>{selectedReservation.customerPhone}</p>
-              <p className="text-sm text-gray-600">{selectedReservation.customerEmail}</p>
+              <p>{selectedReservation.customer?.phone || 'N/A'}</p>
+              <p className="text-sm text-gray-600">{selectedReservation.customer?.email || 'N/A'}</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-700">Date & Time</label>
                 <p>{new Date(selectedReservation.date).toLocaleDateString()}</p>
-                <p>{selectedReservation.time}</p>
+                <p>{new Date(selectedReservation.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">Guests</label>
-                <p className="text-lg font-bold">{selectedReservation.numberOfGuests}</p>
+                <p className="text-lg font-bold">{selectedReservation.party_size}</p>
               </div>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700">Table Number</label>
-              <p className="text-lg">{selectedReservation.tableNumber || 'Not assigned'}</p>
+              <p className="text-lg">{selectedReservation.table?.table_number || 'Not assigned'}</p>
             </div>
-            {selectedReservation.specialRequests && (
+            {selectedReservation.special_requests && (
               <div>
                 <label className="text-sm font-medium text-gray-700">Special Requests</label>
                 <p className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                  {selectedReservation.specialRequests}
+                  {selectedReservation.special_requests}
                 </p>
               </div>
             )}

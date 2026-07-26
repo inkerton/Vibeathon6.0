@@ -37,6 +37,16 @@ interface DashboardStats {
     confirmed: number;
     checkedIn: number;
   };
+  staffOverview: {
+    total: number;
+    active: number;
+    byRole: {
+      admin: number;
+      kitchen: number;
+      inventory: number;
+      reception: number;
+    };
+  };
   recentOrders: any[];
   lowStockItems: any[];
 }
@@ -59,15 +69,34 @@ export default function AdminDashboard() {
       setError('');
 
       // Fetch all required data
-      const [ordersRes, inventoryRes, reservationsRes] = await Promise.all([
+      const [ordersRes, inventoryRes, reservationsRes, staffRes] = await Promise.all([
         apiClient.get('/orders'),
         apiClient.get('/inventory/low-stock'),
-        apiClient.get('/reservations')
+        apiClient.get('/reservations'),
+        apiClient.get('/staff')
       ]);
 
-      const orders = ordersRes.data;
-      const lowStockItems = inventoryRes.data;
-      const reservations = reservationsRes.data;
+      // Backend returns { status: 'success', data: [...] }
+      // Extract the actual data array from response.data.data
+      const ordersData = ordersRes.data?.data || [];
+      const inventoryData = inventoryRes.data?.data || [];
+      const reservationsData = reservationsRes.data?.data || [];
+      const staffData = staffRes.data?.data || [];
+
+      // Handle response data - ensure arrays
+      const orders = Array.isArray(ordersData) ? ordersData : [];
+      const reservations = Array.isArray(reservationsData) ? reservationsData : [];
+      const staff = Array.isArray(staffData) ? staffData : [];
+      
+      // Transform inventory data from snake_case to camelCase
+      const lowStockItems = (Array.isArray(inventoryData) ? inventoryData : []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        unit: item.unit,
+        category: item.category || 'General',
+        availableStock: (item.total_stock || 0) - (item.reserved_stock || 0),
+        reorderThreshold: item.reorder_threshold || 0,
+      }));
 
       // Calculate stats
       const today = new Date().toISOString().split('T')[0];
@@ -86,10 +115,10 @@ export default function AdminDashboard() {
       );
 
       const ordersByStatus = {
-        placed: orders.filter((o: any) => o.orderStatus === 'placed').length,
-        preparing: orders.filter((o: any) => o.orderStatus === 'preparing').length,
-        ready: orders.filter((o: any) => o.orderStatus === 'ready').length,
-        completed: orders.filter((o: any) => o.orderStatus === 'completed').length
+        placed: orders.filter((o: any) => o.order_status === 'placed').length,
+        preparing: orders.filter((o: any) => o.order_status === 'preparing').length,
+        ready: orders.filter((o: any) => o.order_status === 'ready').length,
+        completed: orders.filter((o: any) => o.order_status === 'completed').length
       };
 
       const reservationsToday = reservations.filter((r: any) =>
@@ -103,8 +132,17 @@ export default function AdminDashboard() {
       };
 
       const recentOrders = orders
-        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 5);
+
+      // Calculate staff statistics
+      const activeStaff = staff.filter((s: any) => s.is_active);
+      const staffByRole = {
+        admin: staff.filter((s: any) => s.role === 'admin').length,
+        kitchen: staff.filter((s: any) => s.role === 'kitchen').length,
+        inventory: staff.filter((s: any) => s.role === 'inventory').length,
+        reception: staff.filter((s: any) => s.role === 'reception').length
+      };
 
       setStats({
         totalOrders: orders.length,
@@ -113,6 +151,11 @@ export default function AdminDashboard() {
         todayRevenue,
         ordersByStatus,
         reservationsToday: reservationsByStatus,
+        staffOverview: {
+          total: staff.length,
+          active: activeStaff.length,
+          byRole: staffByRole
+        },
         recentOrders,
         lowStockItems: lowStockItems.slice(0, 5)
       });
@@ -243,16 +286,75 @@ export default function AdminDashboard() {
                   <span>{card.trend}</span>
                 </div>
               </div>
-              <div className={`p-3 rounded-lg ${card.iconClass}`}>
-                {card.icon}
+            </div>
+            <div className="p-3 bg-red-100 rounded-lg">
+              <AlertTriangle className="w-8 h-8 text-red-600" />
+            </div>
+          </div>
+        </Card>
+
+        {/* Today's Revenue */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Today's Revenue</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">
+                ${Number(stats.todayRevenue).toFixed(2)}
+              </p>
+              <div className="flex items-center mt-2 text-sm text-green-600">
+                <DollarSign className="w-4 h-4 mr-1" />
+                <span>Completed orders</span>
               </div>
             </div>
-          </Card>
-        ))}
+            <div className="p-3 bg-green-100 rounded-lg">
+              <DollarSign className="w-8 h-8 text-green-600" />
+            </div>
+          </div>
+        </Card>
+
+        {/* Staff Overview */}
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <Users className="w-5 h-5 mr-2" />
+            Staff Overview
+          </h2>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between pb-3 border-b">
+              <span className="text-sm font-medium text-gray-700">Total Staff</span>
+              <span className="text-2xl font-bold text-gray-900">
+                {stats.staffOverview.total}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Active</span>
+              <span className="text-lg font-semibold text-green-600">
+                {stats.staffOverview.active}
+              </span>
+            </div>
+            <div className="pt-3 border-t space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Admin</span>
+                <span className="font-medium text-gray-900">{stats.staffOverview.byRole.admin}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Kitchen</span>
+                <span className="font-medium text-gray-900">{stats.staffOverview.byRole.kitchen}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Inventory</span>
+                <span className="font-medium text-gray-900">{stats.staffOverview.byRole.inventory}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Reception</span>
+                <span className="font-medium text-gray-900">{stats.staffOverview.byRole.reception}</span>
+              </div>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Orders by Status */}
         <Card>
           <CardHeader>
@@ -364,27 +466,27 @@ export default function AdminDashboard() {
                       <span className="text-sm font-medium text-foreground">
                         Order #{order.id.slice(-8)}
                       </span>
-                      <span className="mx-2 text-muted-foreground/50">•</span>
-                      <span className="text-sm text-muted-foreground">
-                        Table {order.tableNumber}
+                      <span className="mx-2 text-gray-400">•</span>
+                      <span className="text-sm text-gray-600">
+                        Table {order.table.table_number}
                       </span>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {new Date(order.createdAt).toLocaleTimeString()}
+                    <div className="text-xs text-gray-500 mt-1">
+                      {new Date(order.created_at).toLocaleTimeString()}
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm font-semibold text-foreground">
-                      ${order.totalAmount.toFixed(2)}
+                    <span className="text-sm font-semibold text-gray-900">
+                ${Number(order.total_amount || 0).toFixed(2)}
                     </span>
                     <Badge
                       variant={
-                        order.orderStatus === 'completed' ? 'success' :
-                        order.orderStatus === 'ready' ? 'success' :
-                        order.orderStatus === 'preparing' ? 'warning' : 'info'
+                        order.order_status === 'completed' ? 'success' :
+                        order.order_status === 'ready' ? 'success' :
+                        order.order_status === 'preparing' ? 'warning' : 'info'
                       }
                     >
-                      {order.orderStatus}
+                      {order.order_status}
                     </Badge>
                   </div>
                 </div>

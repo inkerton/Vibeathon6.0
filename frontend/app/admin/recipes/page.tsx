@@ -76,9 +76,27 @@ export default function RecipesPage() {
         apiClient.get('/menu'),
         apiClient.get('/inventory')
       ]);
-      setMenuItems(menuResponse.data || []);
-      setInventoryItems(inventoryResponse.data || []);
+      
+      // Backend returns { status: 'success', data: [...] }
+      // Extract the actual data array from response.data.data
+      const menuData = menuResponse.data?.data || [];
+      const inventoryData = inventoryResponse.data?.data || [];
+      
+      if (Array.isArray(menuData)) {
+        setMenuItems(menuData);
+      } else {
+        console.error('Menu data is not an array:', menuData);
+        setMenuItems([]);
+      }
+      
+      if (Array.isArray(inventoryData)) {
+        setInventoryItems(inventoryData);
+      } else {
+        console.error('Inventory data is not an array:', inventoryData);
+        setInventoryItems([]);
+      }
     } catch (err: any) {
+      console.error('Failed to fetch recipes data:', err);
       setError(err.response?.data?.message || err.message || 'Failed to load data');
     } finally {
       setLoading(false);
@@ -89,8 +107,39 @@ export default function RecipesPage() {
     try {
       setLoadingRecipe(true);
       const response = await apiClient.get(`/recipes/menu/${menuItemId}`);
-      setRecipe(response.data || { menuItemId, items: [], maxServings: 0 });
+      
+      // Backend returns { status: 'success', data: { ...menuItem, recipe: [...] } }
+      const recipeData = response.data?.data || response.data;
+      
+      // Transform backend recipe format to frontend format
+      const recipeItems = (recipeData?.recipe || []).map((item: any) => ({
+        id: item.id,
+        inventoryItem: {
+          id: item.ingredient?.id || item.ingredient_id,
+          name: item.ingredient?.name || '',
+          unit: item.ingredient?.unit || item.unit,
+          totalStock: item.ingredient?.total_stock || 0,
+          availableStock: item.ingredient?.total_stock - item.ingredient?.reserved_stock || 0,
+        },
+        quantityRequired: item.quantity
+      }));
+      
+      // Calculate max servings based on available stock
+      const maxServings = recipeItems.length > 0
+        ? Math.min(...recipeItems.map((item: any) => 
+            Math.floor(item.inventoryItem.availableStock / item.quantityRequired)
+          ))
+        : 0;
+      
+      const normalizedRecipe = {
+        menuItemId,
+        items: recipeItems,
+        maxServings
+      };
+      
+      setRecipe(normalizedRecipe);
     } catch (err: any) {
+      console.error('Error fetching recipe:', err);
       // If no recipe exists, initialize empty
       setRecipe({ menuItemId, items: [], maxServings: 0 });
     } finally {
@@ -107,8 +156,8 @@ export default function RecipesPage() {
     try {
       setSaving(true);
       await apiClient.post(`/recipes/menu/${selectedMenuItem.id}/ingredients`, {
-        inventoryItemId: newIngredient.inventoryItemId,
-        quantityRequired: newIngredient.quantityRequired
+        ingredient_id: newIngredient.inventoryItemId,
+        quantity: newIngredient.quantityRequired
       });
       
       setToast({ show: true, message: 'Ingredient added successfully', type: 'success' });
@@ -134,7 +183,7 @@ export default function RecipesPage() {
 
     try {
       await apiClient.patch(`/recipes/items/${recipeItemId}`, {
-        quantityRequired: newQuantity
+        quantity: newQuantity
       });
       
       setToast({ show: true, message: 'Quantity updated successfully', type: 'success' });
@@ -261,7 +310,7 @@ export default function RecipesPage() {
                       <Badge variant="info" className="text-xs">
                         {item.category.replace('_', ' ').toUpperCase()}
                       </Badge>
-                      <span className="text-sm text-gray-600">₹{item.price.toFixed(2)}</span>
+                      <span className="text-sm text-gray-600">₹{Number(item.price).toFixed(2)}</span>
                     </div>
                   </div>
                   {!item.isAvailable && (
@@ -299,7 +348,7 @@ export default function RecipesPage() {
           ) : (
             <div className="space-y-4">
               {/* Max Servings Info */}
-              {recipe && recipe.items.length > 0 && (
+              {recipe && recipe.items && recipe.items.length > 0 && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -314,7 +363,7 @@ export default function RecipesPage() {
               )}
 
               {/* Ingredients List */}
-              {recipe && recipe.items.length > 0 ? (
+              {recipe && recipe.items && recipe.items.length > 0 ? (
                 <div className="space-y-3">
                   <h3 className="font-semibold text-gray-900">Ingredients Required</h3>
                   {recipe.items.map(item => (

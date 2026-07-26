@@ -10,6 +10,7 @@ interface OrderStatusBadgeProps {
 
 export function OrderStatusBadge({ status, size = 'md', showIcon = false }: OrderStatusBadgeProps) {
   const getStatusConfig = (status: string) => {
+    if (!status) return { variant: 'gray' as const, label: 'Unknown', icon: '•' };
     const normalizedStatus = status.toUpperCase();
     
     switch (normalizedStatus) {

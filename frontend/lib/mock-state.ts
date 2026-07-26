@@ -7,6 +7,9 @@ import {
   mockRecipes,
   mockStaff,
   mockTransactions,
+  mockTables,
+  mockWaitlist,
+  mockAnalytics,
   MockUser,
   MockMenuItem,
   MockOrder,
@@ -14,7 +17,10 @@ import {
   MockInventoryItem,
   MockRecipe,
   MockStaff,
-  MockInventoryTransaction
+  MockInventoryTransaction,
+  MockTable,
+  MockWaitlistEntry,
+  MockAnalytics
 } from './mock-data';
 
 class MockState {
@@ -26,6 +32,9 @@ class MockState {
   private recipes: MockRecipe[] = [...mockRecipes];
   private staff: MockStaff[] = [...mockStaff];
   private transactions: MockInventoryTransaction[] = [...mockTransactions];
+  private tables: MockTable[] = [...mockTables];
+  private waitlist: MockWaitlistEntry[] = [...mockWaitlist];
+  private analytics: MockAnalytics = { ...mockAnalytics };
   private currentUser: MockUser | null = null;
   private authToken: string | null = null;
 
@@ -400,9 +409,111 @@ class MockState {
     }
   }
 
+  getStaffById(id: string) {
+    return this.staff.find(s => s.id === id);
+  }
+
+  toggleStaffStatus(id: string) {
+    const index = this.staff.findIndex(s => s.id === id);
+    if (index === -1) {
+      throw new Error('Staff member not found');
+    }
+    this.staff[index] = {
+      ...this.staff[index],
+      isActive: !this.staff[index].isActive,
+      updatedAt: new Date().toISOString()
+    };
+    return this.staff[index];
+  }
+
+  deleteStaff(id: string) {
+    const index = this.staff.findIndex(s => s.id === id);
+    if (index === -1) {
+      throw new Error('Staff member not found');
+    }
+    // Soft delete - set isActive to false
+    this.staff[index] = {
+      ...this.staff[index],
+      isActive: false,
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+
   // Transaction methods
   getTransactions() {
     return [...this.transactions];
+  }
+
+  // Table methods
+  getTables() {
+    return [...this.tables];
+  }
+
+  getTableById(id: string) {
+    return this.tables.find(t => t.id === id);
+  }
+
+  getTableByNumber(number: number) {
+    return this.tables.find(t => t.tableNumber === number);
+  }
+
+  updateTableStatus(id: string, status: MockTable['status']) {
+    const index = this.tables.findIndex(t => t.id === id);
+    if (index !== -1) {
+      this.tables[index] = { ...this.tables[index], status };
+    }
+  }
+
+  getAvailableTables() {
+    return this.tables.filter(t => t.status === 'available');
+  }
+
+  // Waitlist methods
+  getWaitlist() {
+    return [...this.waitlist];
+  }
+
+  getWaitlistById(id: string) {
+    return this.waitlist.find(w => w.id === id);
+  }
+
+  addToWaitlist(entry: MockWaitlistEntry) {
+    this.waitlist.push(entry);
+  }
+
+  updateWaitlistStatus(id: string, status: MockWaitlistEntry['status']) {
+    const index = this.waitlist.findIndex(w => w.id === id);
+    if (index !== -1) {
+      this.waitlist[index] = { ...this.waitlist[index], status };
+    }
+  }
+
+  removeFromWaitlist(id: string) {
+    this.waitlist = this.waitlist.filter(w => w.id !== id);
+  }
+
+  // Analytics methods
+  getAnalytics() {
+    //  Recalculate dynamic values
+    const today = new Date().toISOString().split('T')[0];
+    return {
+      ...this.analytics,
+      summary: {
+        todaysReservations: this.reservations.filter(r => 
+          r.reservationDate === today
+        ).length,
+        pendingCheckIn: this.reservations.filter(r => 
+          r.reservationDate === today && r.status === 'confirmed'
+        ).length,
+        currentlySeated: this.reservations.filter(r => 
+          r.reservationDate === today && r.status === 'checked_in'
+        ).length,
+        pendingPayments: this.orders.filter(o => 
+          o.paymentStatus === 'pending'
+        ).length,
+      }
+    };
   }
 
   // Utility methods
@@ -419,6 +530,9 @@ class MockState {
     this.recipes = [...mockRecipes];
     this.staff = [...mockStaff];
     this.transactions = [...mockTransactions];
+    this.tables = [...mockTables];
+    this.waitlist = [...mockWaitlist];
+    this.analytics = { ...mockAnalytics };
     this.currentUser = null;
     this.authToken = null;
   }

@@ -28,14 +28,13 @@ interface OrderItem {
 
 interface Order {
   id: string;
-  orderNumber: string;
-  status: string;
-  totalAmount: number;
+  order_status: string;
+  total_amount: string;
   notes?: string | null;
-  createdAt: string;
+  created_at: string;
   table: {
     id: string;
-    tableNumber: number;
+    table_number: number;
   };
   items: OrderItem[];
 }
@@ -72,7 +71,7 @@ export default function OrderTrackingPage() {
         params: { status: 'active' }
       });
       
-      setOrders(response.data || []);
+      setOrders(response.data?.data || []);
     } catch (err: any) {
       if (!silent) {
         setError(err.response?.data?.message || err.message || 'Failed to load orders');
@@ -111,7 +110,7 @@ export default function OrderTrackingPage() {
   };
 
   const canCancelOrder = (order: Order) => {
-    return order.status === 'RECEIVED' || order.status === 'PENDING';
+    return order.order_status === 'placed' || order.order_status === 'preparing';
   };
 
   const getEstimatedTime = (order: Order) => {
@@ -192,16 +191,16 @@ export default function OrderTrackingPage() {
                   <div>
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-lg font-bold text-gray-900">
-                        Order #{order.orderNumber}
+                        Order #{order.id.slice(-8)}
                       </h3>
-                      <OrderStatusBadge status={order.status} showIcon />
+                      <OrderStatusBadge status={order.order_status} showIcon />
                     </div>
                     <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <span>Table #{order.table.tableNumber}</span>
+                      <span>Table #{order.table.table_number}</span>
                       <span>•</span>
                       <span>{order.items.length} items</span>
                       <span>•</span>
-                      <span>₹{order.totalAmount.toFixed(2)}</span>
+                      <span>₹{Number(order.total_amount).toFixed(2)}</span>
                     </div>
                   </div>
                   <button
@@ -214,8 +213,8 @@ export default function OrderTrackingPage() {
 
                 {/* Order Timeline */}
                 <OrderTimeline
-                  currentStatus={order.status}
-                  createdAt={order.createdAt}
+                  currentStatus={order.order_status}
+                  createdAt={order.created_at}
                   estimatedTime={getEstimatedTime(order)}
                 />
 

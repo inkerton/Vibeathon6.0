@@ -61,12 +61,12 @@ export function OrderItemCard({
             <div>
               <h4 className="font-semibold text-gray-900">{item.menuItem.name}</h4>
               <p className="text-sm text-gray-600">
-                Quantity: {item.quantity} × ₹{item.menuItem.price.toFixed(2)}
+          Quantity: {item.quantity} × ₹{Number(item.menuItem.price).toFixed(2)}
               </p>
             </div>
             <div className="text-right">
               <p className="font-bold text-gray-900">
-                ₹{(item.quantity * item.menuItem.price).toFixed(2)}
+          ₹{(item.quantity * Number(item.menuItem.price)).toFixed(2)}
               </p>
               {showStatus && item.status && (
                 <Badge variant={getStatusVariant(item.status)} className="mt-1">
