@@ -110,9 +110,10 @@ export default function AdminDashboard() {
         o.updated_at.startsWith(today)
       );
 
-      const todayRevenue = completedToday.reduce((sum: number, o: any) => 
-        sum + o.total_amount, 0
-      );
+      const todayRevenue = completedToday.reduce((sum: number, o: any) => {
+        const amount = Number(o.total_amount) || 0;
+        return sum + amount;
+      }, 0);
 
       const ordersByStatus = {
         placed: orders.filter((o: any) => o.order_status === 'placed').length,
@@ -287,7 +288,7 @@ export default function AdminDashboard() {
             <div>
               <p className="text-sm font-medium text-gray-600">Today's Revenue</p>
               <p className="text-3xl font-bold text-gray-900 mt-2">
-                ${Number(stats.todayRevenue).toFixed(2)}
+                ₹{Number(stats.todayRevenue).toFixed(2)}
               </p>
               <div className="flex items-center mt-2 text-sm text-green-600">
                 <DollarSign className="w-4 h-4 mr-1" />
@@ -463,7 +464,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm font-semibold text-gray-900">
-                ${Number(order.total_amount || 0).toFixed(2)}
+                      ₹{Number(order.total_amount || 0).toFixed(2)}
                     </span>
                     <Badge
                       variant={
