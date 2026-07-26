@@ -28,7 +28,7 @@ export default function Home() {
             router.push('/inventory/dashboard');
             break;
           case 'admin':
-            router.push('/admin/dashboard');
+            router.push('/admin');
             break;
           default:
             router.push('/customer/menu');
