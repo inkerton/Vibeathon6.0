@@ -48,6 +48,7 @@ export class MenuService {
     price: number;
     category: string;
     image_url?: string;
+    preparation_time?: number;
   }) {
     // Check if item with same name exists
     const existing = await prisma.menuItem.findUnique({
@@ -65,6 +66,7 @@ export class MenuService {
         price: data.price,
         category: data.category,
         image_url: data.image_url,
+        preparation_time: data.preparation_time || 15,
         is_available: true,
       },
     });
@@ -81,6 +83,7 @@ export class MenuService {
       category?: string;
       image_url?: string;
       is_available?: boolean;
+      preparation_time?: number;
     }
   ) {
     const menuItem = await prisma.menuItem.findUnique({
@@ -119,6 +122,12 @@ export class MenuService {
       throw new AppError('Menu item not found', 404);
     }
 
+    // Delete related recipe items first to avoid foreign key constraint violation
+    await prisma.recipeItem.deleteMany({
+      where: { menu_item_id: id },
+    });
+
+    // Now delete the menu item
     await prisma.menuItem.delete({
       where: { id },
     });

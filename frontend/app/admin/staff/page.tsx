@@ -1,33 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
+import { Card } from '@/components/Card';
+import { Button } from '@/components/Button';
+import { Badge } from '@/components/Badge';
+import { Modal } from '@/components/Modal';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { ErrorMessage } from '@/components/ErrorMessage';
+import { Toast } from '@/components/Toast';
+import { apiClient } from '@/lib/api-client';
 
-import { Card } from "@/components/Card";
-import { Button } from "@/components/Button";
-import { Badge } from "@/components/Badge";
-import { Modal } from "@/components/Modal";
-import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { ErrorMessage } from "@/components/ErrorMessage";
-import { Toast } from "@/components/Toast";
-import { apiClient } from "@/lib/api-client";
+// Backend response type
+interface StaffResponse {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  role: 'reception' | 'kitchen' | 'inventory' | 'admin';
+  is_active: boolean;
+  auth_provider: string;
+  created_at: string;
+  updated_at: string;
+}
 
-import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TablePagination from "@mui/material/TablePagination";
-import TableRow from "@mui/material/TableRow";
-import TableSortLabel from "@mui/material/TableSortLabel";
-import { visuallyHidden } from "@mui/utils";
-import TextField from "@mui/material/TextField";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-
+// Frontend display type
 interface Staff {
   id: string;
   name: string;
@@ -36,6 +32,19 @@ interface Staff {
   role: string;
   isActive: boolean;
   createdAt: string;
+}
+
+// Transform backend response to frontend format
+function transformStaffResponse(data: StaffResponse): Staff {
+  return {
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    phone: data.phone || '',
+    role: data.role,
+    isActive: data.is_active,
+    createdAt: data.created_at,
+  };
 }
 
 interface CreateStaffForm {
@@ -216,84 +225,25 @@ const [statusFilter, setStatusFilter] = useState("all");
   // };
 
   const fetchStaff = async () => {
-    setLoading(true);
-
-    setTimeout(() => {
-      setStaff([
-        {
-          id: "1",
-          name: "John Doe",
-          email: "john@example.com",
-          phone: "+91 9876543210",
-          role: "admin",
-          isActive: true,
-          createdAt: "2025-01-15T10:30:00Z",
-        },
-        {
-          id: "2",
-          name: "Sarah Wilson",
-          email: "sarah@example.com",
-          phone: "+91 9876543211",
-          role: "kitchen",
-          isActive: true,
-          createdAt: "2025-02-01T09:15:00Z",
-        },
-        {
-          id: "3",
-          name: "Rahul Sharma",
-          email: "rahul@example.com",
-          phone: "+91 9876543212",
-          role: "reception",
-          isActive: false,
-          createdAt: "2025-02-20T14:45:00Z",
-        },
-        {
-          id: "4",
-          name: "Emily Davis",
-          email: "emily@example.com",
-          phone: "+91 9876543213",
-          role: "inventory",
-          isActive: true,
-          createdAt: "2025-03-05T12:00:00Z",
-        },
-        {
-          id: "5",
-          name: "Michael Brown",
-          email: "michael@example.com",
-          phone: "+91 9876543214",
-          role: "kitchen",
-          isActive: true,
-          createdAt: "2025-03-18T08:20:00Z",
-        },
-        {
-          id: "6",
-          name: "Priya Singh",
-          email: "priya@example.com",
-          phone: "+91 9876543215",
-          role: "reception",
-          isActive: false,
-          createdAt: "2025-04-01T16:10:00Z",
-        },
-        {
-          id: "7",
-          name: "David Lee",
-          email: "david@example.com",
-          phone: "+91 9876543216",
-          role: "inventory",
-          isActive: true,
-          createdAt: "2025-04-15T11:00:00Z",
-        },
-        {
-          id: "8",
-          name: "Aisha Khan",
-          email: "aisha@example.com",
-          phone: "+91 9876543217",
-          role: "admin",
-          isActive: true,
-          createdAt: "2025-05-10T09:45:00Z",
-        },
-      ]);
-
+    try {
+      setLoading(true);
+      setError('');
+      const response = await apiClient.get('/staff');
+      
+      // Backend returns { status: 'success', data: [...] }
+      // Extract the actual data array from response.data.data
+      const staffData = response.data?.data || [];
+      
+      if (Array.isArray(staffData)) {
+        setStaff(staffData.map(transformStaffResponse));
+      } else {
+        console.error('Staff data is not an array:', staffData);
+        setStaff([]);
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch staff:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to load staff');
+    } finally {
       setLoading(false);
     }, 500);
   };
@@ -348,18 +298,20 @@ const visibleRows = [...filteredStaff]
 
     try {
       setSubmitting(true);
-
-      await apiClient.post("/auth/register", {
-        ...formData,
-        isStaff: true,
+      const response = await apiClient.post('/staff', {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        role: formData.role,
       });
-
-      setToast({
-        show: true,
-        message: "Staff member created successfully",
-        type: "success",
+      
+      // Response.data now contains the staff object directly
+      setToast({ 
+        show: true, 
+        message: 'Staff member created successfully', 
+        type: 'success' 
       });
-
       setIsModalOpen(false);
 
       setFormData({
@@ -372,10 +324,19 @@ const visibleRows = [...filteredStaff]
 
       fetchStaff();
     } catch (err: any) {
-      setToast({
-        show: true,
-        message: err.message || "Failed to create staff",
-        type: "error",
+      console.error('Failed to create staff:', err);
+      console.error('Error response data:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      console.error('Request payload:', {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        role: formData.role,
+      });
+      setToast({ 
+        show: true, 
+        message: err.response?.data?.message || err.message || 'Failed to create staff', 
+        type: 'error' 
       });
     } finally {
       setSubmitting(false);
@@ -387,24 +348,22 @@ const visibleRows = [...filteredStaff]
     currentStatus: boolean,
   ) => {
     try {
-      await apiClient.patch(`/auth/staff/${staffId}/status`, {
-        isActive: !currentStatus,
-      });
-
-      setToast({
-        show: true,
-        message: `Staff ${
-          !currentStatus ? "activated" : "deactivated"
-        } successfully`,
-        type: "success",
+      const response = await apiClient.patch(`/staff/${staffId}/status`);
+      
+      // Response.data now contains the staff object directly
+      setToast({ 
+        show: true, 
+        message: `Staff ${!currentStatus ? 'activated' : 'deactivated'} successfully`, 
+        type: 'success' 
       });
 
       fetchStaff();
     } catch (err: any) {
-      setToast({
-        show: true,
-        message: err.message || "Failed to update staff status",
-        type: "error",
+      console.error('Failed to toggle staff status:', err);
+      setToast({ 
+        show: true, 
+        message: err.response?.data?.message || err.message || 'Failed to update staff status', 
+        type: 'error' 
       });
     }
   };
@@ -527,27 +486,20 @@ const visibleRows = [...filteredStaff]
                       <Badge variant={getRoleBadgeVariant(member.role)}>
                         {member.role.toUpperCase()}
                       </Badge>
-                    </TableCell>
-
-                    <TableCell>
-                      <Badge variant={member.isActive ? "success" : "gray"}>
-                        {member.isActive ? "Active" : "Inactive"}
+                    </td>
+                    <td>
+                      <Badge variant={member.is_active ? 'success' : 'gray'}>
+                        {member.is_active ? 'Active' : 'Inactive'}
                       </Badge>
-                    </TableCell>
-
-                    <TableCell>
-                      {new Date(member.createdAt).toLocaleDateString()}
-                    </TableCell>
-
-                    <TableCell>
+                    </td>
+                    <td>{new Date(member.created_at).toLocaleDateString()}</td>
+                    <td>
                       <Button
                         size="sm"
-                        variant={member.isActive ? "danger" : "success"}
-                        onClick={() =>
-                          handleToggleActive(member.id, member.isActive)
-                        }
+                        variant={member.is_active ? 'danger' : 'success'}
+                        onClick={() => handleToggleActive(member.id, member.is_active)}
                       >
-                        {member.isActive ? "Deactivate" : "Activate"}
+                        {member.is_active ? 'Deactivate' : 'Activate'}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -576,8 +528,90 @@ const visibleRows = [...filteredStaff]
         </Paper>
       </Card>
 
-      {/* Keep your existing Modal exactly as it was */}
-      {/* Don't change the modal code */}
+      {/* Create Staff Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Add New Staff Member"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateStaff} disabled={submitting}>
+              {submitting ? 'Creating...' : 'Create Staff'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleCreateStaff} className="space-y-4">
+          <div>
+            <label className="form-label">Name</label>
+            <input
+              type="text"
+              className="form-input"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="form-label">Email</label>
+            <input
+              type="email"
+              className="form-input"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="form-label">Phone</label>
+            <input
+              type="tel"
+              className="form-input"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="form-label">Password</label>
+            <input
+              type="password"
+              className="form-input"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              required
+              minLength={8}
+              placeholder="Minimum 8 characters"
+            />
+            {formData.password && formData.password.length < 8 && (
+              <p className="text-sm text-red-600 mt-1">
+                Password must be at least 8 characters (currently {formData.password.length})
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="form-label">Role</label>
+            <select
+              className="form-input"
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+              required
+            >
+              <option value="kitchen">Kitchen</option>
+              <option value="reception">Reception</option>
+              <option value="inventory">Inventory</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

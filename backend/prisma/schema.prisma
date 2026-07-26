@@ -128,17 +128,18 @@ model Reservation {
 }
 
 model MenuItem {
-  id           String       @id @default(cuid())
-  name         String       @unique
-  description  String
-  price        Decimal      @db.Decimal(10, 2)
-  category     String
-  image_url    String?
-  is_available Boolean      @default(true)
-  created_at   DateTime     @default(now())
-  updated_at   DateTime     @updatedAt
-  recipe       RecipeItem[]
-  order_items  OrderItem[]
+  id               String       @id @default(cuid())
+  name             String       @unique
+  description      String
+  price            Decimal      @db.Decimal(10, 2)
+  category         String
+  image_url        String?
+  is_available     Boolean      @default(true)
+  preparation_time Int          @default(15)
+  created_at       DateTime     @default(now())
+  updated_at       DateTime     @updatedAt
+  recipe           RecipeItem[]
+  order_items      OrderItem[]
 }
 
 model RecipeItem {

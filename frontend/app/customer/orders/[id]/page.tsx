@@ -26,14 +26,13 @@ interface OrderItem {
 
 interface Order {
   id: string;
-  orderNumber: string;
-  status: string;
-  totalAmount: number;
+  order_status: string;
+  total_amount: string;
   notes?: string | null;
-  createdAt: string;
+  created_at: string;
   table: {
     id: string;
-    tableNumber: number;
+    table_number: number;
   };
   items: OrderItem[];
 }
@@ -119,15 +118,15 @@ export default function OrderConfirmationPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Order Number</p>
-                <p className="text-lg font-bold text-gray-900">#{order.orderNumber}</p>
+                <p className="text-lg font-bold text-gray-900">#{order.id.slice(-8)}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600 mb-1">Table Number</p>
-                <p className="text-lg font-bold text-gray-900">#{order.table.tableNumber}</p>
+                <p className="text-lg font-bold text-gray-900">#{order.table.table_number}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600 mb-1">Status</p>
-                <OrderStatusBadge status={order.status} />
+                <OrderStatusBadge status={order.order_status} />
               </div>
               <div>
                 <p className="text-sm text-gray-600 mb-1">Est. Time</p>
@@ -162,16 +161,16 @@ export default function OrderConfirmationPage() {
             <div className="space-y-3">
               <div className="flex justify-between text-gray-700">
                 <span>Subtotal</span>
-                <span>₹{(order.totalAmount / 1.05).toFixed(2)}</span>
+              <span>₹{(Number(order.total_amount) / 1.05).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-gray-700">
                 <span>GST (5%)</span>
-                <span>₹{(order.totalAmount - order.totalAmount / 1.05).toFixed(2)}</span>
+              <span>₹{(Number(order.total_amount) - Number(order.total_amount) / 1.05).toFixed(2)}</span>
               </div>
               <div className="border-t border-gray-200 pt-3 flex justify-between items-center">
                 <span className="text-lg font-bold text-gray-900">Total Amount</span>
                 <span className="text-2xl font-bold text-blue-600">
-                  ₹{order.totalAmount.toFixed(2)}
+              ₹{Number(order.total_amount).toFixed(2)}
                 </span>
               </div>
             </div>

@@ -13,13 +13,14 @@ export function OrderTimeline({ currentStatus, createdAt, estimatedTime = 30 }: 
   ];
 
   const getCurrentIndex = () => {
+    if (!currentStatus) return 0;
     const normalized = currentStatus.toUpperCase();
     const index = statuses.findIndex(s => s.key === normalized);
     return index === -1 ? 0 : index;
   };
 
   const currentIndex = getCurrentIndex();
-  const isCancelled = currentStatus.toUpperCase() === 'CANCELLED';
+  const isCancelled = currentStatus?.toUpperCase() === 'CANCELLED';
 
   const getElapsedTime = () => {
     const now = new Date();

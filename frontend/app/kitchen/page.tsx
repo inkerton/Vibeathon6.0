@@ -11,27 +11,28 @@ import { apiClient } from '@/lib/api-client';
 
 interface OrderItem {
   id: string;
-  menuItemId: string;
+  menu_item_id: string;
   quantity: number;
-  status: 'pending' | 'preparing' | 'ready';
-  customInstructions: string | null;
-  allergyInfo: string | null;
-  menuItem: {
+  status: 'received' | 'preparing' | 'ready' | 'served';
+  custom_instructions: string | null;
+  allergy_info: string | null;
+  menu_item: {
     name: string;
-    preparationTime: number;
+    preparation_time: number;
   };
 }
 
 interface Order {
   id: string;
-  orderNumber: string;
-  tableNumber: number | null;
-  status: 'received' | 'preparing' | 'ready' | 'served' | 'cancelled';
-  totalAmount: number;
-  createdAt: string;
+  order_status: 'placed' | 'preparing' | 'ready' | 'served' | 'cancelled';
+  total_amount: string;
+  created_at: string;
   items: OrderItem[];
   customer: {
     name: string;
+  };
+  table: {
+    table_number: number;
   };
 }
 
@@ -52,8 +53,8 @@ export default function KitchenDashboard() {
     try {
       setError('');
       const response = await apiClient.get('/orders/active');
-      const activeOrders = (response.data || []).filter(
-        (order: Order) => ['received', 'preparing', 'ready'].includes(order.status)
+      const activeOrders = (response.data?.data || []).filter(
+        (order: Order) => ['placed', 'preparing', 'ready'].includes(order.order_status)
       );
       setOrders(activeOrders);
     } catch (err: any) {
@@ -84,11 +85,11 @@ export default function KitchenDashboard() {
   };
 
   const getOrdersByStatus = (status: string) => {
-    return orders.filter(order => order.status === status);
+    return orders.filter(order => order.order_status === status);
   };
 
-  const getTimeSinceOrder = (createdAt: string) => {
-    const minutes = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000);
+  const getTimeSinceOrder = (created_at: string) => {
+    const minutes = Math.floor((Date.now() - new Date(created_at).getTime()) / 60000);
     if (minutes < 1) return 'Just now';
     if (minutes === 1) return '1 min ago';
     return `${minutes} mins ago`;
@@ -96,9 +97,10 @@ export default function KitchenDashboard() {
 
   const getItemStatusBadge = (status: string) => {
     const variants: Record<string, 'warning' | 'info' | 'success'> = {
-      pending: 'warning',
+      received: 'warning',
       preparing: 'info',
       ready: 'success',
+      served: 'success',
     };
     return variants[status] || 'warning';
   };
@@ -135,21 +137,21 @@ export default function KitchenDashboard() {
           <div className="space-y-4">
             <div className="bg-yellow-100 rounded-lg p-4">
               <h2 className="text-xl font-bold text-yellow-900">
-                Received ({getOrdersByStatus('received').length})
+                Received ({getOrdersByStatus('placed').length})
               </h2>
             </div>
             <div className="space-y-4">
-              {getOrdersByStatus('received').map(order => (
+              {getOrdersByStatus('placed').map(order => (
                 <Card key={order.id} className="border-l-4 border-yellow-500">
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="font-bold text-lg">Order #{order.orderNumber}</h3>
+                        <h3 className="font-bold text-lg">Order #{order.id.slice(-8)}</h3>
                         <p className="text-sm text-gray-600">
-                          Table {order.tableNumber || 'N/A'} • {order.customer.name}
+                          Table {order.table.table_number} • {order.customer.name}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {getTimeSinceOrder(order.createdAt)}
+                          {getTimeSinceOrder(order.created_at)}
                         </p>
                       </div>
                       <Badge variant="warning">NEW</Badge>
@@ -161,16 +163,16 @@ export default function KitchenDashboard() {
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
                               <p className="font-medium">
-                                {item.quantity}x {item.menuItem.name}
+                                {item.quantity}x {item.menu_item.name}
                               </p>
-                              {item.customInstructions && (
+                              {item.custom_instructions && (
                                 <p className="text-sm text-gray-600 mt-1">
-                                  Note: {item.customInstructions}
+                                  Note: {item.custom_instructions}
                                 </p>
                               )}
-                              {item.allergyInfo && (
+                              {item.allergy_info && (
                                 <p className="text-sm text-red-600 font-medium mt-1">
-                                  ⚠️ Allergy: {item.allergyInfo}
+                                  ⚠️ Allergy: {item.allergy_info}
                                 </p>
                               )}
                             </div>
@@ -191,7 +193,7 @@ export default function KitchenDashboard() {
                   </div>
                 </Card>
               ))}
-              {getOrdersByStatus('received').length === 0 && (
+              {getOrdersByStatus('placed').length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   No new orders
                 </div>
@@ -212,12 +214,12 @@ export default function KitchenDashboard() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="font-bold text-lg">Order #{order.orderNumber}</h3>
+                        <h3 className="font-bold text-lg">Order #{order.id.slice(-8)}</h3>
                         <p className="text-sm text-gray-600">
-                          Table {order.tableNumber || 'N/A'} • {order.customer.name}
+                          Table {order.table.table_number} • {order.customer.name}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {getTimeSinceOrder(order.createdAt)}
+                          {getTimeSinceOrder(order.created_at)}
                         </p>
                       </div>
                       <Badge variant="info">IN PROGRESS</Badge>
@@ -229,7 +231,7 @@ export default function KitchenDashboard() {
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
                               <p className="font-medium">
-                                {item.quantity}x {item.menuItem.name}
+                        {item.quantity}x {item.menu_item.name}
                               </p>
                               {item.customInstructions && (
                                 <p className="text-sm text-gray-600 mt-1">
@@ -246,7 +248,7 @@ export default function KitchenDashboard() {
                               <Badge variant={getItemStatusBadge(item.status)}>
                                 {item.status}
                               </Badge>
-                              {item.status === 'pending' && (
+                              {item.status === 'received' && (
                                 <button
                                   onClick={() => updateOrderItemStatus(order.id, item.id, 'preparing')}
                                   className="text-xs text-blue-600 hover:underline"
@@ -299,12 +301,12 @@ export default function KitchenDashboard() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="font-bold text-lg">Order #{order.orderNumber}</h3>
+                        <h3 className="font-bold text-lg">Order #{order.id.slice(-8)}</h3>
                         <p className="text-sm text-gray-600">
-                          Table {order.tableNumber || 'N/A'} • {order.customer.name}
+                          Table {order.table.table_number} • {order.customer.name}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {getTimeSinceOrder(order.createdAt)}
+                          {getTimeSinceOrder(order.created_at)}
                         </p>
                       </div>
                       <Badge variant="success">READY</Badge>
@@ -314,7 +316,7 @@ export default function KitchenDashboard() {
                       {order.items.map(item => (
                         <div key={item.id} className="bg-gray-50 p-2 rounded">
                           <p className="font-medium">
-                            {item.quantity}x {item.menuItem.name}
+                            {item.quantity}x {item.menu_item.name}
                           </p>
                         </div>
                       ))}

@@ -14,12 +14,6 @@ export interface MockReservation {
   updatedAt: string;
 }
 
-export interface MockTable {
-  number: number;
-  capacity: number;
-  status: 'available' | 'occupied' | 'reserved';
-}
-
 const now = Date.now();
 const today = new Date(now);
 const tomorrow = new Date(now + 24 * 60 * 60 * 1000);
@@ -204,22 +198,4 @@ export const mockReservations: MockReservation[] = [
     createdAt: new Date(now - 72 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(now - 36 * 60 * 60 * 1000).toISOString()
   }
-];
-
-export const mockTables: MockTable[] = [
-  { number: 1, capacity: 2, status: 'available' },
-  { number: 2, capacity: 2, status: 'occupied' }, // reservation-8
-  { number: 3, capacity: 4, status: 'reserved' }, // reservation-4
-  { number: 4, capacity: 2, status: 'available' },
-  { number: 5, capacity: 4, status: 'occupied' }, // order-1
-  { number: 6, capacity: 4, status: 'occupied' }, // reservation-9
-  { number: 7, capacity: 4, status: 'occupied' }, // order-3
-  { number: 8, capacity: 2, status: 'occupied' }, // order-5
-  { number: 9, capacity: 6, status: 'available' },
-  { number: 10, capacity: 4, status: 'occupied' }, // order-7
-  { number: 11, capacity: 4, status: 'available' },
-  { number: 12, capacity: 6, status: 'occupied' }, // order-4
-  { number: 13, capacity: 8, status: 'available' },
-  { number: 14, capacity: 8, status: 'available' },
-  { number: 15, capacity: 2, status: 'available' }
 ];
