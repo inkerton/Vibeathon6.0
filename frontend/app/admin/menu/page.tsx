@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback, useOptimistic } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { Toast } from '@/components/Toast';
 import { apiClient } from '@/lib/api-client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   MaterialReactTable,
   type MRT_ColumnDef,
@@ -37,33 +38,42 @@ interface MenuItemForm {
 
 const CATEGORIES = ['appetizer', 'main_course', 'dessert', 'beverage', 'special'];
 
+// Query key
+const MENU_QUERY_KEY = ['menuItems'];
+
+// API functions
+const fetchMenuItems = async (): Promise<MenuItem[]> => {
+  const response = await apiClient.get('/menu?includeUnavailable=true');
+  
+  if (response.data?.data && Array.isArray(response.data.data)) {
+    return response.data.data;
+  } else if (Array.isArray(response.data)) {
+    return response.data;
+  }
+  return [];
+};
+
+const createMenuItem = async (data: any): Promise<MenuItem> => {
+  const response = await apiClient.post('/menu', data);
+  return response.data?.data || response.data;
+};
+
+const updateMenuItem = async ({ id, data }: { id: string; data: any }): Promise<MenuItem> => {
+  const response = await apiClient.patch(`/menu/${id}`, data);
+  return response.data?.data || response.data;
+};
+
+const deleteMenuItem = async (id: string): Promise<void> => {
+  await apiClient.delete(`/menu/${id}`);
+};
+
+const toggleAvailability = async ({ id, isAvailable }: { id: string; isAvailable: boolean }): Promise<MenuItem> => {
+  const response = await apiClient.patch(`/menu/${id}/availability`, { isAvailable });
+  return response.data?.data || response.data;
+};
+
 export default function MenuManagement() {
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [optimisticItems, setOptimisticItems] = useOptimistic(
-    menuItems,
-    (state, optimisticValue: { action: 'add' | 'update' | 'delete' | 'toggle'; item?: MenuItem; id?: string }) => {
-      switch (optimisticValue.action) {
-        case 'add':
-          return optimisticValue.item ? [...state, optimisticValue.item] : state;
-        case 'update':
-          return optimisticValue.item 
-            ? state.map(item => item.id === optimisticValue.item!.id ? optimisticValue.item! : item)
-            : state;
-        case 'delete':
-          return state.filter(item => item.id !== optimisticValue.id);
-        case 'toggle':
-          return state.map(item =>
-            item.id === optimisticValue.id
-              ? { ...item, isAvailable: !item.isAvailable }
-              : item
-          );
-        default:
-          return state;
-      }
-    }
-  );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [formData, setFormData] = useState<MenuItemForm>({
@@ -74,39 +84,150 @@ export default function MenuManagement() {
     imageUrl: '',
     preparationTime: '15',
   });
-  const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' as 'success' | 'error' });
-  // const [filterCategory, setFilterCategory] = useState<string>('all');
 
-  const fetchMenuItems = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError('');
-      // Include unavailable items so we can show enable/disable buttons
-      const response = await apiClient.get('/menu?includeUnavailable=true');
+  // Fetch menu items with React Query
+  const { data: menuItems = [], isLoading, error } = useQuery({
+    queryKey: MENU_QUERY_KEY,
+    queryFn: fetchMenuItems,
+  });
+
+  // Create mutation
+  const createMutation = useMutation({
+    mutationFn: createMenuItem,
+    onMutate: async (newItem) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: MENU_QUERY_KEY });
       
-      // Handle backend response structure: { status: 'success', data: [...] }
-      let items = [];
-      if (response.data?.data && Array.isArray(response.data.data)) {
-        items = response.data.data;
-      } else if (Array.isArray(response.data)) {
-        items = response.data;
+      // Snapshot previous value
+      const previousItems = queryClient.getQueryData<MenuItem[]>(MENU_QUERY_KEY);
+      
+      // Optimistically update with temporary item
+      const tempItem: MenuItem = {
+        id: `temp-${Date.now()}`,
+        name: newItem.name,
+        description: newItem.description,
+        price: newItem.price,
+        category: newItem.category,
+        imageUrl: newItem.imageUrl,
+        isAvailable: true,
+        preparationTime: newItem.preparationTime,
+        createdAt: new Date().toISOString()
+      };
+      
+      queryClient.setQueryData<MenuItem[]>(MENU_QUERY_KEY, (old = []) => [...old, tempItem]);
+      
+      return { previousItems };
+    },
+    onError: (err: any, newItem, context) => {
+      // Rollback on error
+      if (context?.previousItems) {
+        queryClient.setQueryData(MENU_QUERY_KEY, context.previousItems);
       }
-      
-      console.log('Fetched menu items:', items.length);
-      setMenuItems(items);
-    } catch (err: any) {
-      console.error('Failed to fetch menu items:', err);
-      setError(err.message || 'Failed to load menu items');
-      setMenuItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      setToast({ show: true, message: err.message || 'Failed to create menu item', type: 'error' });
+    },
+    onSuccess: (data) => {
+      setToast({ show: true, message: 'Menu item created successfully', type: 'success' });
+      setIsModalOpen(false);
+    },
+    onSettled: () => {
+      // Refetch to ensure sync with server
+      queryClient.invalidateQueries({ queryKey: MENU_QUERY_KEY });
+    },
+  });
 
-  useEffect(() => {
-    fetchMenuItems();
-  }, [fetchMenuItems]);
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: updateMenuItem,
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: MENU_QUERY_KEY });
+      
+      const previousItems = queryClient.getQueryData<MenuItem[]>(MENU_QUERY_KEY);
+      
+      // Optimistically update
+      queryClient.setQueryData<MenuItem[]>(MENU_QUERY_KEY, (old = []) =>
+        old.map(item => item.id === id ? { ...item, ...data } : item)
+      );
+      
+      return { previousItems };
+    },
+    onError: (err: any, variables, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(MENU_QUERY_KEY, context.previousItems);
+      }
+      setToast({ show: true, message: err.message || 'Failed to update menu item', type: 'error' });
+    },
+    onSuccess: () => {
+      setToast({ show: true, message: 'Menu item updated successfully', type: 'success' });
+      setIsModalOpen(false);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: MENU_QUERY_KEY });
+    },
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: deleteMenuItem,
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: MENU_QUERY_KEY });
+      
+      const previousItems = queryClient.getQueryData<MenuItem[]>(MENU_QUERY_KEY);
+      
+      // Optimistically remove
+      queryClient.setQueryData<MenuItem[]>(MENU_QUERY_KEY, (old = []) =>
+        old.filter(item => item.id !== id)
+      );
+      
+      return { previousItems };
+    },
+    onError: (err: any, id, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(MENU_QUERY_KEY, context.previousItems);
+      }
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to delete menu item';
+      setToast({ show: true, message: errorMessage, type: 'error' });
+    },
+    onSuccess: () => {
+      setToast({ show: true, message: 'Menu item deleted successfully', type: 'success' });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: MENU_QUERY_KEY });
+    },
+  });
+
+  // Toggle availability mutation
+  const toggleMutation = useMutation({
+    mutationFn: toggleAvailability,
+    onMutate: async ({ id, isAvailable }) => {
+      await queryClient.cancelQueries({ queryKey: MENU_QUERY_KEY });
+      
+      const previousItems = queryClient.getQueryData<MenuItem[]>(MENU_QUERY_KEY);
+      
+      // Optimistically toggle
+      queryClient.setQueryData<MenuItem[]>(MENU_QUERY_KEY, (old = []) =>
+        old.map(item => item.id === id ? { ...item, isAvailable } : item)
+      );
+      
+      return { previousItems };
+    },
+    onError: (err: any, variables, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(MENU_QUERY_KEY, context.previousItems);
+      }
+      setToast({ show: true, message: err.message || 'Failed to update availability', type: 'error' });
+    },
+    onSuccess: (data, variables) => {
+      setToast({ 
+        show: true, 
+        message: `Menu item ${variables.isAvailable ? 'enabled' : 'disabled'} successfully`, 
+        type: 'success' 
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: MENU_QUERY_KEY });
+    },
+  });
 
   const handleOpenModal = useCallback((item?: MenuItem) => {
     if (item) {
@@ -135,92 +256,31 @@ export default function MenuManagement() {
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      setSubmitting(true);
-      const payload = {
-        name: formData.name,
-        description: formData.description,
-        price: parseFloat(formData.price),
-        category: formData.category,
-        imageUrl: formData.imageUrl || null,
-        preparationTime: parseInt(formData.preparationTime),
-      };
+    
+    const payload = {
+      name: formData.name,
+      description: formData.description,
+      price: parseFloat(formData.price),
+      category: formData.category,
+      imageUrl: formData.imageUrl || null,
+      preparationTime: parseInt(formData.preparationTime),
+    };
 
-      if (editingItem) {
-        // Optimistic update
-        setOptimisticItems({
-          action: 'update',
-          item: { ...editingItem, ...payload, price: parseFloat(formData.price), preparationTime: parseInt(formData.preparationTime) }
-        });
-        
-        await apiClient.patch(`/menu/${editingItem.id}`, payload);
-        setToast({ show: true, message: 'Menu item updated successfully', type: 'success' });
-      } else {
-        // Optimistic add with temporary ID
-        const tempItem: MenuItem = {
-          id: `temp-${Date.now()}`,
-          name: formData.name,
-          description: formData.description,
-          price: parseFloat(formData.price),
-          category: formData.category,
-          imageUrl: formData.imageUrl || null,
-          isAvailable: true,
-          preparationTime: parseInt(formData.preparationTime),
-          createdAt: new Date().toISOString()
-        };
-        
-        setOptimisticItems({ action: 'add', item: tempItem });
-        
-        await apiClient.post('/menu', payload);
-        setToast({ show: true, message: 'Menu item created successfully', type: 'success' });
-      }
-
-      setIsModalOpen(false);
-      await fetchMenuItems();
-    } catch (err: any) {
-      setToast({ show: true, message: err.message || 'Failed to save menu item', type: 'error' });
-      await fetchMenuItems(); // Revert on error
-    } finally {
-      setSubmitting(false);
+    if (editingItem) {
+      updateMutation.mutate({ id: editingItem.id, data: payload });
+    } else {
+      createMutation.mutate(payload);
     }
-  }, [editingItem, formData, fetchMenuItems]);
+  }, [editingItem, formData, createMutation, updateMutation]);
 
   const handleDelete = useCallback(async (itemId: string) => {
     if (!confirm('Are you sure you want to delete this menu item?')) return;
-
-    try {
-      // Optimistic delete
-      setOptimisticItems({ action: 'delete', id: itemId });
-      
-      await apiClient.delete(`/menu/${itemId}`);
-      setToast({ show: true, message: 'Menu item deleted successfully', type: 'success' });
-      await fetchMenuItems();
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to delete menu item';
-      setToast({ show: true, message: errorMessage, type: 'error' });
-      await fetchMenuItems(); // Revert on error
-    }
-  }, [fetchMenuItems]);
+    deleteMutation.mutate(itemId);
+  }, [deleteMutation]);
 
   const handleToggleAvailability = useCallback(async (itemId: string, currentStatus: boolean) => {
-    try {
-      // Optimistic toggle
-      setOptimisticItems({ action: 'toggle', id: itemId });
-      
-      await apiClient.patch(`/menu/${itemId}/availability`, {
-        isAvailable: !currentStatus,
-      });
-      setToast({ 
-        show: true, 
-        message: `Menu item ${!currentStatus ? 'enabled' : 'disabled'} successfully`, 
-        type: 'success' 
-      });
-      await fetchMenuItems();
-    } catch (err: any) {
-      setToast({ show: true, message: err.message || 'Failed to update availability', type: 'error' });
-      await fetchMenuItems(); // Revert on error
-    }
-  }, [fetchMenuItems]);
+    toggleMutation.mutate({ id: itemId, isAvailable: !currentStatus });
+  }, [toggleMutation]);
 
   const getCategoryBadgeVariant = useCallback((category: string) => {
     const variants: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
@@ -230,12 +290,8 @@ export default function MenuManagement() {
       beverage: 'info',
       special: 'danger',
     };
-    return variants[category] || 'gray';
+    return variants[category] || 'info';
   }, []);
-
-  // const filteredItems = filterCategory === 'all' 
-  //   ? menuItems 
-  //   : menuItems.filter(item => item.category === filterCategory);
 
   const columns = useMemo<MRT_ColumnDef<MenuItem>[]>(
     () => [
@@ -259,12 +315,10 @@ export default function MenuManagement() {
             <div className="w-[60px] h-[60px] bg-gray-200 rounded" />
           ),
       },
-
       {
         accessorKey: "name",
         header: "Name",
       },
-
       {
         accessorKey: "category",
         header: "Category",
@@ -274,43 +328,30 @@ export default function MenuManagement() {
           </Badge>
         ),
       },
-
       {
         accessorKey: "price",
         header: "Price",
         Cell: ({ cell }) => `₹${Number(cell.getValue<number>()).toFixed(2)}`,
       },
-
       {
         accessorKey: "preparationTime",
         header: "Prep Time",
         Cell: ({ cell }) => `${cell.getValue<number>()} min`,
       },
-
       {
         accessorKey: "isAvailable",
         header: "Status",
         Cell: ({ row }) => (
-          <Badge
-            variant={
-              row.original.isAvailable
-                ? "success"
-                : "gray"
-            }
-          >
-            {row.original.isAvailable
-              ? "Available"
-              : "Unavailable"}
+          <Badge variant={row.original.isAvailable ? "success" : "gray"}>
+            {row.original.isAvailable ? "Available" : "Unavailable"}
           </Badge>
         ),
       },
-
       {
         id: "actions",
         header: "Actions",
         enableSorting: false,
         enableColumnFilter: false,
-
         Cell: ({ row }) => (
           <div className="flex gap-2">
             <Button
@@ -320,32 +361,19 @@ export default function MenuManagement() {
             >
               Edit
             </Button>
-
             <Button
               size="sm"
-              variant={
-                row.original.isAvailable
-                  ? "danger"
-                  : "success"
-              }
+              variant={row.original.isAvailable ? "danger" : "success"}
               onClick={() =>
-                handleToggleAvailability(
-                  row.original.id,
-                  row.original.isAvailable
-                )
+                handleToggleAvailability(row.original.id, row.original.isAvailable)
               }
             >
-              {row.original.isAvailable
-                ? "Disable"
-                : "Enable"}
+              {row.original.isAvailable ? "Disable" : "Enable"}
             </Button>
-
             <Button
               size="sm"
               variant="danger"
-              onClick={() =>
-                handleDelete(row.original.id)
-              }
+              onClick={() => handleDelete(row.original.id)}
             >
               Delete
             </Button>
@@ -353,15 +381,12 @@ export default function MenuManagement() {
         ),
       },
     ],
-    [
-      handleDelete,
-      handleOpenModal,
-      handleToggleAvailability,
-      getCategoryBadgeVariant,
-    ]
+    [handleDelete, handleOpenModal, handleToggleAvailability, getCategoryBadgeVariant]
   );
 
-  if (loading) {
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
+
+  if (isLoading) {
     return <LoadingSpinner size="lg" className="py-20" />;
   }
 
@@ -384,39 +409,10 @@ export default function MenuManagement() {
         </Button>
       </div>
 
-      {error && <ErrorMessage message={error} />}
-
-      {/* Category Filter */}
-      {/* <Card>
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => setFilterCategory('all')}
-            className={`px-4 py-2 rounded-lg font-medium ${
-              filterCategory === 'all' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            All
-          </button>
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setFilterCategory(cat)}
-              className={`px-4 py-2 rounded-lg font-medium capitalize ${
-                filterCategory === cat 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {cat.replace('_', ' ')}
-            </button>
-          ))}
-        </div>
-      </Card> */}
+      {error && <ErrorMessage message={(error as Error).message || 'Failed to load menu items'} />}
 
       <Card>
-        {menuItems.length === 0 && !loading && !error ? (
+        {menuItems.length === 0 && !isLoading && !error ? (
           <div className="text-center py-12 text-gray-500">
             <p className="text-lg font-medium">No menu items found</p>
             <p className="text-sm mt-2">Create your first menu item to get started</p>
@@ -424,24 +420,24 @@ export default function MenuManagement() {
         ) : (
           <MaterialReactTable
             columns={columns}
-            data={optimisticItems}
-          enableColumnOrdering
-          enableColumnPinning
-          enableSorting
-          enablePagination
-          enableGlobalFilter
-          enableColumnFilters
-          enableDensityToggle
-          enableFullScreenToggle
-          enableHiding
-          positionGlobalFilter="left"
-          initialState={{
-            showGlobalFilter: true,
-            density: "comfortable",
-            pagination: {
-              pageSize: 10,
-            },
-          }}
+            data={menuItems}
+            enableColumnOrdering
+            enableColumnPinning
+            enableSorting
+            enablePagination
+            enableGlobalFilter
+            enableColumnFilters
+            enableDensityToggle
+            enableFullScreenToggle
+            enableHiding
+            positionGlobalFilter="left"
+            initialState={{
+              showGlobalFilter: true,
+              density: "comfortable",
+              pagination: {
+                pageSize: 10,
+              },
+            }}
           />
         )}
       </Card>
@@ -456,8 +452,8 @@ export default function MenuManagement() {
             <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting ? 'Saving...' : editingItem ? 'Update' : 'Create'}
+            <Button onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : editingItem ? 'Update' : 'Create'}
             </Button>
           </>
         }
