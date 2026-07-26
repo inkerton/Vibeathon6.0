@@ -223,4 +223,8 @@ npx shadcn@latest init --preset b1uI7y2HA --template next
 npx shadcn@latest add button card input label separator alert
 
 npm install react-icons
+
+npm install @mui/material @emotion/react @emotion/styled
+
+npm install material-react-table @mui/material @mui/icons-material @emotion/react @emotion/styled
 ```
