@@ -116,10 +116,25 @@ export class MenuService {
   async deleteMenuItem(id: string) {
     const menuItem = await prisma.menuItem.findUnique({
       where: { id },
+      include: {
+        _count: {
+          select: {
+            order_items: true,
+          },
+        },
+      },
     });
 
     if (!menuItem) {
       throw new AppError('Menu item not found', 404);
+    }
+
+    // Prevent deletion if item has been ordered
+    if (menuItem._count.order_items > 0) {
+      throw new AppError(
+        'Cannot delete menu item that has been ordered. Please disable it instead to preserve order history.',
+        400
+      );
     }
 
     // Delete related recipe items first to avoid foreign key constraint violation
