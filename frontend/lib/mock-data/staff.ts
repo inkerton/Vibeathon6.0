@@ -4,6 +4,7 @@ export interface MockStaff {
   id: string;
   email: string;
   name: string;
+  phone?: string;
   role: 'admin' | 'kitchen' | 'reception' | 'inventory';
   isActive: boolean;
   createdAt: string;

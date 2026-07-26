@@ -19,16 +19,16 @@ export default function Home() {
             router.push('/customer/menu');
             break;
           case 'reception':
-            router.push('/reception/dashboard');
+            router.push('/reception');
             break;
           case 'kitchen':
-            router.push('/kitchen/orders');
+            router.push('/kitchen');
             break;
           case 'inventory':
-            router.push('/inventory/dashboard');
+            router.push('/inventory');
             break;
           case 'admin':
-            router.push('/admin/dashboard');
+            router.push('/admin');
             break;
           default:
             router.push('/customer/menu');

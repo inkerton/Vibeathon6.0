@@ -43,6 +43,7 @@ import reservationRoutes from './routes/reservation.routes';
 import orderRoutes from './routes/order.routes';
 import inventoryRoutes from './routes/inventory.routes';
 import recipeRoutes from './routes/recipe.routes';
+import staffRoutes from './routes/staff.routes';
 const seedRoutes = require('./routes/seed.routes');
 
 app.use('/api/v1/auth', authRoutes);
@@ -51,6 +52,7 @@ app.use('/api/v1/reservations', reservationRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/recipes', recipeRoutes);
+app.use('/api/v1/staff', staffRoutes);
 app.use('/api/v1/seed', seedRoutes);
 // TODO: Add more routes as they are implemented
 // app.use('/api/v1/tables', require('./routes/table.routes'));

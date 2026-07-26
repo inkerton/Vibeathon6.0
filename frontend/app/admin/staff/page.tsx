@@ -10,6 +10,20 @@ import { ErrorMessage } from '@/components/ErrorMessage';
 import { Toast } from '@/components/Toast';
 import { apiClient } from '@/lib/api-client';
 
+// Backend response type
+interface StaffResponse {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  role: 'reception' | 'kitchen' | 'inventory' | 'admin';
+  is_active: boolean;
+  auth_provider: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Frontend display type
 interface Staff {
   id: string;
   name: string;
@@ -18,6 +32,19 @@ interface Staff {
   role: string;
   isActive: boolean;
   createdAt: string;
+}
+
+// Transform backend response to frontend format
+function transformStaffResponse(data: StaffResponse): Staff {
+  return {
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    phone: data.phone || '',
+    role: data.role,
+    isActive: data.is_active,
+    createdAt: data.created_at,
+  };
 }
 
 interface CreateStaffForm {
@@ -51,10 +78,14 @@ export default function StaffManagement() {
     try {
       setLoading(true);
       setError('');
-      const response = await apiClient.get('/auth/staff');
-      setStaff(response.data || []);
+      const response = await apiClient.get('/staff');
+      
+      // Handle consistent response structure - data is array directly
+      const staffData = Array.isArray(response.data) ? response.data : [];
+      setStaff(staffData.map(transformStaffResponse));
     } catch (err: any) {
-      setError(err.message || 'Failed to load staff');
+      console.error('Failed to fetch staff:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to load staff');
     } finally {
       setLoading(false);
     }
@@ -64,16 +95,38 @@ export default function StaffManagement() {
     e.preventDefault();
     try {
       setSubmitting(true);
-      await apiClient.post('/auth/register', {
-        ...formData,
-        isStaff: true,
+      const response = await apiClient.post('/staff', {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        role: formData.role,
       });
-      setToast({ show: true, message: 'Staff member created successfully', type: 'success' });
+      
+      // Response.data now contains the staff object directly
+      setToast({ 
+        show: true, 
+        message: 'Staff member created successfully', 
+        type: 'success' 
+      });
       setIsModalOpen(false);
       setFormData({ name: '', email: '', phone: '', password: '', role: 'kitchen' });
       fetchStaff();
     } catch (err: any) {
-      setToast({ show: true, message: err.message || 'Failed to create staff', type: 'error' });
+      console.error('Failed to create staff:', err);
+      console.error('Error response data:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      console.error('Request payload:', {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        role: formData.role,
+      });
+      setToast({ 
+        show: true, 
+        message: err.response?.data?.message || err.message || 'Failed to create staff', 
+        type: 'error' 
+      });
     } finally {
       setSubmitting(false);
     }
@@ -81,9 +134,9 @@ export default function StaffManagement() {
 
   const handleToggleActive = async (staffId: string, currentStatus: boolean) => {
     try {
-      await apiClient.patch(`/auth/staff/${staffId}/status`, {
-        isActive: !currentStatus,
-      });
+      const response = await apiClient.patch(`/staff/${staffId}/status`);
+      
+      // Response.data now contains the staff object directly
       setToast({ 
         show: true, 
         message: `Staff ${!currentStatus ? 'activated' : 'deactivated'} successfully`, 
@@ -91,7 +144,12 @@ export default function StaffManagement() {
       });
       fetchStaff();
     } catch (err: any) {
-      setToast({ show: true, message: err.message || 'Failed to update staff status', type: 'error' });
+      console.error('Failed to toggle staff status:', err);
+      setToast({ 
+        show: true, 
+        message: err.response?.data?.message || err.message || 'Failed to update staff status', 
+        type: 'error' 
+      });
     }
   };
 
@@ -243,8 +301,14 @@ export default function StaffManagement() {
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               required
-              minLength={6}
+              minLength={8}
+              placeholder="Minimum 8 characters"
             />
+            {formData.password && formData.password.length < 8 && (
+              <p className="text-sm text-red-600 mt-1">
+                Password must be at least 8 characters (currently {formData.password.length})
+              </p>
+            )}
           </div>
 
           <div>

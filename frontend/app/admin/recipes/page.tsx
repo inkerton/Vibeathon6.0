@@ -76,8 +76,9 @@ export default function RecipesPage() {
         apiClient.get('/menu'),
         apiClient.get('/inventory')
       ]);
-      setMenuItems(menuResponse.data || []);
-      setInventoryItems(inventoryResponse.data || []);
+      // Handle response data - ensure arrays
+      setMenuItems(Array.isArray(menuResponse.data) ? menuResponse.data : []);
+      setInventoryItems(Array.isArray(inventoryResponse.data) ? inventoryResponse.data : []);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Failed to load data');
     } finally {

@@ -60,7 +60,9 @@ export default function MenuManagement() {
       setLoading(true);
       setError('');
       const response = await apiClient.get('/menu');
-      setMenuItems(response.data || []);
+      // Handle backend response structure: { status: 'success', data: [...] }
+      const items = response.data?.data || response.data || [];
+      setMenuItems(Array.isArray(items) ? items : []);
     } catch (err: any) {
       setError(err.message || 'Failed to load menu items');
     } finally {
@@ -270,7 +272,7 @@ export default function MenuManagement() {
                         {item.category.replace('_', ' ').toUpperCase()}
                       </Badge>
                     </td>
-                    <td className="font-medium">₹{item.price.toFixed(2)}</td>
+                    <td className="font-medium">₹{item.price}</td>
                     <td>{item.preparationTime} min</td>
                     <td>
                       <Badge variant={item.isAvailable ? 'success' : 'gray'}>

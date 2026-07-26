@@ -37,6 +37,16 @@ interface DashboardStats {
     confirmed: number;
     checkedIn: number;
   };
+  staffOverview: {
+    total: number;
+    active: number;
+    byRole: {
+      admin: number;
+      kitchen: number;
+      inventory: number;
+      reception: number;
+    };
+  };
   recentOrders: any[];
   lowStockItems: any[];
 }
@@ -59,15 +69,18 @@ export default function AdminDashboard() {
       setError('');
       
       // Fetch all required data
-      const [ordersRes, inventoryRes, reservationsRes] = await Promise.all([
+      const [ordersRes, inventoryRes, reservationsRes, staffRes] = await Promise.all([
         apiClient.get('/orders'),
         apiClient.get('/inventory/low-stock'),
-        apiClient.get('/reservations')
+        apiClient.get('/reservations'),
+        apiClient.get('/staff')
       ]);
 
-      const orders = ordersRes.data;
-      const lowStockItems = inventoryRes.data;
-      const reservations = reservationsRes.data;
+      // Handle response data - ensure arrays
+      const orders = Array.isArray(ordersRes.data) ? ordersRes.data : [];
+      const lowStockItems = Array.isArray(inventoryRes.data) ? inventoryRes.data : [];
+      const reservations = Array.isArray(reservationsRes.data) ? reservationsRes.data : [];
+      const staff = Array.isArray(staffRes.data) ? staffRes.data : [];
 
       // Calculate stats
       const today = new Date().toISOString().split('T')[0];
@@ -106,6 +119,15 @@ export default function AdminDashboard() {
         .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5);
 
+      // Calculate staff statistics
+      const activeStaff = staff.filter((s: any) => s.isActive);
+      const staffByRole = {
+        admin: staff.filter((s: any) => s.role === 'admin').length,
+        kitchen: staff.filter((s: any) => s.role === 'kitchen').length,
+        inventory: staff.filter((s: any) => s.role === 'inventory').length,
+        reception: staff.filter((s: any) => s.role === 'reception').length
+      };
+
       setStats({
         totalOrders: orders.length,
         activeOrders: activeOrders.length,
@@ -113,6 +135,11 @@ export default function AdminDashboard() {
         todayRevenue,
         ordersByStatus,
         reservationsToday: reservationsByStatus,
+        staffOverview: {
+          total: staff.length,
+          active: activeStaff.length,
+          byRole: staffByRole
+        },
         recentOrders,
         lowStockItems: lowStockItems.slice(0, 5)
       });
@@ -256,10 +283,50 @@ export default function AdminDashboard() {
             </div>
           </div>
         </Card>
+
+        {/* Staff Overview */}
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <Users className="w-5 h-5 mr-2" />
+            Staff Overview
+          </h2>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between pb-3 border-b">
+              <span className="text-sm font-medium text-gray-700">Total Staff</span>
+              <span className="text-2xl font-bold text-gray-900">
+                {stats.staffOverview.total}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Active</span>
+              <span className="text-lg font-semibold text-green-600">
+                {stats.staffOverview.active}
+              </span>
+            </div>
+            <div className="pt-3 border-t space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Admin</span>
+                <span className="font-medium text-gray-900">{stats.staffOverview.byRole.admin}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Kitchen</span>
+                <span className="font-medium text-gray-900">{stats.staffOverview.byRole.kitchen}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Inventory</span>
+                <span className="font-medium text-gray-900">{stats.staffOverview.byRole.inventory}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Reception</span>
+                <span className="font-medium text-gray-900">{stats.staffOverview.byRole.reception}</span>
+              </div>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Orders by Status */}
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">

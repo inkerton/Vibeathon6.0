@@ -111,6 +111,11 @@ class MockApiClient {
       return this.createStaff(data);
     }
 
+    // Waitlist endpoints
+    if (url === '/waitlist') {
+      return this.addToWaitlist(data);
+    }
+
     throw new Error(`Mock POST endpoint not implemented: ${url}`);
   }
 
@@ -184,6 +189,39 @@ class MockApiClient {
     if (url === '/staff') {
       return this.getStaff();
     }
+    if (url.match(/\/staff\/([^/]+)$/)) {
+      const id = url.split('/')[2];
+      return this.getStaffById(id);
+    }
+
+    // Table endpoints
+    if (url === '/tables') {
+      return this.getTables();
+    }
+    if (url === '/tables/available') {
+      return this.getAvailableTables();
+    }
+    if (url.match(/\/tables\/(.+)/)) {
+      const id = url.split('/')[2];
+      return this.getTableById(id);
+    }
+
+    // Waitlist endpoints
+    if (url === '/waitlist') {
+      return this.getWaitlist();
+    }
+    if (url.match(/\/waitlist\/(.+)/)) {
+      const id = url.split('/')[2];
+      return this.getWaitlistById(id);
+    }
+
+    // Analytics endpoints
+    if (url === '/analytics') {
+      return this.getAnalytics();
+    }
+    if (url === '/analytics/summary') {
+      return this.getAnalyticsSummary();
+    }
 
     throw new Error(`Mock GET endpoint not implemented: ${url}`);
   }
@@ -237,9 +275,25 @@ class MockApiClient {
     }
 
     // Staff endpoints
-    if (url.match(/\/staff\/(.+)/)) {
+    if (url.match(/\/staff\/([^/]+)\/status$/)) {
+      const id = url.split('/')[2];
+      return this.toggleStaffStatus(id);
+    }
+    if (url.match(/\/staff\/([^/]+)$/)) {
       const id = url.split('/')[2];
       return this.updateStaff(id, data);
+    }
+
+    // Table endpoints
+    if (url.match(/\/tables\/(.+)\/status/)) {
+      const id = url.split('/')[2];
+      return this.updateTableStatus(id, data.status);
+    }
+
+    // Waitlist endpoints
+    if (url.match(/\/waitlist\/(.+)\/status/)) {
+      const id = url.split('/')[2];
+      return this.updateWaitlistStatus(id, data.status);
     }
 
     throw new Error(`Mock PATCH endpoint not implemented: ${url}`);
@@ -268,6 +322,18 @@ class MockApiClient {
     if (url.match(/\/recipes\/items\/(.+)/)) {
       const recipeItemId = url.split('/')[3];
       return this.removeIngredientFromRecipe(recipeItemId);
+    }
+
+    // Waitlist endpoints
+    if (url.match(/\/waitlist\/(.+)/)) {
+      const id = url.split('/')[2];
+      return this.removeFromWaitlist(id);
+    }
+
+    // Staff endpoints
+    if (url.match(/\/staff\/([^/]+)$/)) {
+      const id = url.split('/')[2];
+      return this.deleteStaff(id);
     }
 
     throw new Error(`Mock DELETE endpoint not implemented: ${url}`);
@@ -566,21 +632,6 @@ class MockApiClient {
 
   // ==================== RESERVATION METHODS ====================
 
-  private async getAvailableTables() {
-    return this.mockRequest(() => {
-      // Mock available tables - return tables 1, 4, 9, 11, 13, 14, 15
-      return [
-        { number: 1, capacity: 2 },
-        { number: 4, capacity: 2 },
-        { number: 9, capacity: 6 },
-        { number: 11, capacity: 4 },
-        { number: 13, capacity: 8 },
-        { number: 14, capacity: 8 },
-        { number: 15, capacity: 2 }
-      ];
-    });
-  }
-
   private async createReservation(data: any) {
     return this.mockRequest(() => {
       const user = mockState.getCurrentUser();
@@ -785,7 +836,38 @@ class MockApiClient {
 
   private async getStaff() {
     return this.mockRequest(() => {
-      return mockState.getStaff();
+      const staff = mockState.getStaff();
+      return staff.map((s: MockStaff) => ({
+        id: s.id,
+        name: s.name,
+        email: s.email,
+        phone: s.phone || null,
+        role: s.role,
+        is_active: s.isActive,
+        auth_provider: 'local',
+        created_at: s.createdAt,
+        updated_at: s.updatedAt || s.createdAt,
+      }));
+    });
+  }
+
+  private async getStaffById(id: string) {
+    return this.mockRequest(() => {
+      const staff = mockState.getStaffById(id);
+      if (!staff) {
+        throw new Error('Staff member not found');
+      }
+      return {
+        id: staff.id,
+        name: staff.name,
+        email: staff.email,
+        phone: staff.phone || null,
+        role: staff.role,
+        is_active: staff.isActive,
+        auth_provider: 'local',
+        created_at: staff.createdAt,
+        updated_at: staff.updatedAt || staff.createdAt,
+      };
     });
   }
 
@@ -795,20 +877,163 @@ class MockApiClient {
         id: mockState.generateId('staff'),
         email: data.email,
         name: data.name,
+        phone: data.phone || '',
         role: data.role,
         isActive: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
       mockState.addStaff(newStaff);
-      return newStaff;
+      return {
+        id: newStaff.id,
+        name: newStaff.name,
+        email: newStaff.email,
+        phone: newStaff.phone || null,
+        role: newStaff.role,
+        is_active: newStaff.isActive,
+        auth_provider: 'local',
+        created_at: newStaff.createdAt,
+        updated_at: newStaff.updatedAt,
+      };
     });
   }
 
   private async updateStaff(id: string, data: any) {
     return this.mockRequest(() => {
       mockState.updateStaff(id, data);
-      return { message: 'Staff updated successfully' };
+      const updatedStaff = mockState.getStaffById(id);
+      if (!updatedStaff) {
+        throw new Error('Staff member not found');
+      }
+      return {
+        id: updatedStaff.id,
+        name: updatedStaff.name,
+        email: updatedStaff.email,
+        phone: updatedStaff.phone || null,
+        role: updatedStaff.role,
+        is_active: updatedStaff.isActive,
+        auth_provider: 'local',
+        created_at: updatedStaff.createdAt,
+        updated_at: updatedStaff.updatedAt || updatedStaff.createdAt,
+      };
+    });
+  }
+
+  private async toggleStaffStatus(id: string) {
+    return this.mockRequest(() => {
+      const updatedStaff = mockState.toggleStaffStatus(id);
+      return {
+        id: updatedStaff.id,
+        name: updatedStaff.name,
+        email: updatedStaff.email,
+        phone: updatedStaff.phone || null,
+        role: updatedStaff.role,
+        is_active: updatedStaff.isActive,
+        auth_provider: 'local',
+        created_at: updatedStaff.createdAt,
+        updated_at: updatedStaff.updatedAt || updatedStaff.createdAt,
+      };
+    });
+  }
+
+  private async deleteStaff(id: string) {
+    return this.mockRequest(() => {
+      mockState.deleteStaff(id);
+      return { message: 'Staff member deleted successfully' };
+    });
+  }
+
+
+
+  // ==================== TABLE METHODS ====================
+
+  private async getTables() {
+    return this.mockRequest(() => {
+      return mockState.getTables();
+    });
+  }
+
+  private async getTableById(id: string) {
+    return this.mockRequest(() => {
+      const table = mockState.getTableById(id);
+      if (!table) {
+        throw new Error('Table not found');
+      }
+      return table;
+    });
+  }
+
+  private async getAvailableTables() {
+    return this.mockRequest(() => {
+      return mockState.getAvailableTables();
+    });
+  }
+
+  private async updateTableStatus(id: string, status: string) {
+    return this.mockRequest(() => {
+      mockState.updateTableStatus(id, status as any);
+      return mockState.getTableById(id);
+    });
+  }
+
+  // ==================== WAITLIST METHODS ====================
+
+  private async getWaitlist() {
+    return this.mockRequest(() => {
+      return mockState.getWaitlist();
+    });
+  }
+
+  private async getWaitlistById(id: string) {
+    return this.mockRequest(() => {
+      const entry = mockState.getWaitlistById(id);
+      if (!entry) {
+        throw new Error('Waitlist entry not found');
+      }
+      return entry;
+    });
+  }
+
+  private async addToWaitlist(data: any) {
+    return this.mockRequest(() => {
+      const newEntry = {
+        id: mockState.generateId('wait'),
+        customerName: data.customerName,
+        partySize: data.partySize,
+        quotedTime: data.quotedTime || 15,
+        status: 'waiting' as const,
+        createdAt: new Date().toISOString()
+      };
+      mockState.addToWaitlist(newEntry);
+      return newEntry;
+    });
+  }
+
+  private async updateWaitlistStatus(id: string, status: string) {
+    return this.mockRequest(() => {
+      mockState.updateWaitlistStatus(id, status as any);
+      return mockState.getWaitlistById(id);
+    });
+  }
+
+  private async removeFromWaitlist(id: string) {
+    return this.mockRequest(() => {
+      mockState.removeFromWaitlist(id);
+      return { message: 'Waitlist entry removed successfully' };
+    });
+  }
+
+  // ==================== ANALYTICS METHODS ====================
+
+  private async getAnalytics() {
+    return this.mockRequest(() => {
+      return mockState.getAnalytics();
+    });
+  }
+
+  private async getAnalyticsSummary() {
+    return this.mockRequest(() => {
+      return mockState.getAnalytics().summary;
     });
   }
 }

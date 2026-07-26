@@ -61,3 +61,19 @@ export const roleMiddleware = (allowedRoles: Role[]) => {
     next();
   };
 };
+
+
+/**
+ * Middleware to ensure only admin users can access the route
+ */
+export const adminOnly = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return next(new AppError('Authentication required', 401));
+  }
+
+  if (req.user.role !== Role.admin) {
+    return next(new AppError('Access denied. Admin privileges required.', 403));
+  }
+
+  next();
+};

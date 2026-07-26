@@ -47,8 +47,9 @@ export default function AdminInventoryOverview() {
         apiClient.get('/inventory/low-stock'),
       ]);
 
-      const items = inventoryRes.data || [];
-      const lowStock = lowStockRes.data || [];
+      // Handle backend response structure: { status: 'success', data: [...] }
+      const items = Array.isArray(inventoryRes.data?.data) ? inventoryRes.data.data : (Array.isArray(inventoryRes.data) ? inventoryRes.data : []);
+      const lowStock = Array.isArray(lowStockRes.data?.data) ? lowStockRes.data.data : (Array.isArray(lowStockRes.data) ? lowStockRes.data : []);
       
       setInventory(items);
       

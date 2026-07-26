@@ -107,7 +107,7 @@ export default function ReceptionDashboard() {
 
   const getTodayReservations = () => {
     const today = new Date().toISOString().split('T')[0];
-    return reservations.filter(r => r.date.startsWith(today) && r.status !== 'cancelled');
+    return reservations.filter(r => r.date && r.date.startsWith(today) && r.status !== 'cancelled');
   };
 
   const filteredReservations = filterStatus === 'all' 

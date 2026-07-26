@@ -55,7 +55,7 @@ export default function InventoryManagement() {
       setLoading(true);
       setError('');
       const response = await apiClient.get('/inventory');
-      setInventory(response.data || []);
+      setInventory(response.data.data || []);
     } catch (err: any) {
       setError(err.message || 'Failed to load inventory');
     } finally {
