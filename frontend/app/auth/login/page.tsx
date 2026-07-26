@@ -6,7 +6,8 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
 import { Loader2 } from "lucide-react";
-import DottedBg2 from "@/components/ui/dotted-bg";
+
+import Vortex from "@/components/ui/dotted-bg";
 import { useAuth } from "@/lib/auth-context";
 
 import { Button } from "@/components/ui/button";
@@ -16,14 +17,11 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
-  CardAction,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -60,48 +58,36 @@ export default function LoginPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      {/* Animated Background */}
-      <DottedBg2
-        className="absolute inset-0"
-        bgColor="#f8fafc"
-        colors={["#3b82f6", "#6366f1", "#8b5cf6", "#06b6d4"]}
-        frequency={3}
-        speed={2}
-        cellSize={28}
-        gamma={6}
-        paletteBias={-2}
-      />
+      {/* Background */}
+      <div className="absolute inset-0 -z-10">
+        <Vortex />
+      </div>
 
-      {/* Soft overlay */}
-      {/* <div className="absolute inset-0 bg-white/55 backdrop-blur-[2px]" /> */}
+      {/* Content */}
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+        <Card className="w-full max-w-md rounded-2xl border border-white/20 bg-white shadow-2xl backdrop-blur-xl">
+          <CardHeader className="space-y-4">
+            <Image
+              src="/next.svg"
+              alt="Restaurant Logo"
+              width={70}
+              height={35}
+              priority
+            />
 
-      {/* Login Content */}
-      <div className="relative z-10 flex min-h-screen items-center justify-center px-6">
-        <Card className="w-full max-w-sm h-full space-y-12   ">
-          <CardHeader>
-            <div className="space-y-3 bg-red-200 flex flex-col gap-12 p-12">
-              <div>
-                <Image
-                  src="/next.svg"
-                  alt="Restaurant Logo"
-                  width={70}
-                  height={35}
-                  priority
-                  className="mb-20"
-                />
-              </div>
-              <CardTitle className="mt-20 text-4xl sm:text-5xl font-bold tracking-tight">
-                Sign in
+            <div>
+              <CardTitle className="text-4xl font-bold tracking-tight">
+                Welcome Back
               </CardTitle>
 
-              <CardDescription className="text-base text-muted-foreground">
-                Welcome back! Sign in to continue.
+              <CardDescription className="mt-2 text-base text-muted-foreground">
+                Sign in to continue to your account.
               </CardDescription>
             </div>
           </CardHeader>
 
-          <CardContent className="px-6 sm:px-8 py-6">
-            <form onSubmit={handleSubmit} className="space-y-12 bg-blue-200">
+          <CardContent className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
@@ -109,9 +95,7 @@ export default function LoginPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </Label>
+                <Label htmlFor="email">Email</Label>
 
                 <Input
                   id="email"
@@ -126,9 +110,16 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium">
-                  Password
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+
+                  <Link
+                    href="/auth/forgot-password"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
 
                 <Input
                   id="password"
@@ -144,31 +135,39 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="h-12 w-full rounded-lg text-base font-semibold"
                 disabled={loading}
+                className="h-12 w-full rounded-lg bg-black text-base font-semibold hover:bg-neutral-800"
               >
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {loading && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
 
                 {loading ? "Signing In..." : "Sign In"}
               </Button>
 
-              <div className="flex items-center gap-4 py-2">
-                <Separator className="flex-1" />
-                <span className="text-sm text-muted-foreground">or</span>
-                <Separator className="flex-1" />
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <Separator className="w-full" />
+                </div>
+
+                <div className="relative flex justify-center text-sm">
+                  <span className="bg-white/80 px-2 text-muted-foreground">
+                    Or continue with
+                  </span>
+                </div>
               </div>
 
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleGoogleLogin}
-                className="h-12 w-full rounded-lg text-base font-medium"
+                className="h-12 w-full rounded-lg border-gray-300 bg-white/80 text-base font-medium backdrop-blur-sm hover:bg-white"
               >
                 <FcGoogle className="mr-3 h-5 w-5" />
                 Continue with Google
               </Button>
 
-              <p className="text-center text-sm text-muted-foreground pt-2">
+              <p className="text-center text-sm text-muted-foreground">
                 Don't have an account?{" "}
                 <Link
                   href="/auth/register"
