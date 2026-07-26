@@ -30,13 +30,11 @@ export function getQueryParam(req: Request, paramName: string): string | undefin
  * Returns a standard Express RequestHandler
  */
 export function authHandler(
-  handler: (req: AuthRequest, res: Response, next: NextFunction) => Promise<void> | void
-): any {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      await handler(req as AuthRequest, res, next);
-    } catch (error) {
-      next(error);
-    }
+  handler: (req: AuthRequest, res: Response, next: NextFunction) => Promise<any>
+): RequestHandler {
+  return (req: Request, res: Response, next: NextFunction) => {
+    // The `req` object is cast to `AuthRequest` before being passed to the handler.
+    // The `.catch(next)` ensures any promise rejections are passed to the Express error handler.
+    Promise.resolve(handler(req as AuthRequest, res, next)).catch(next);
   };
 }

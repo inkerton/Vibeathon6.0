@@ -26,7 +26,11 @@ passport.use(
           name,
         });
 
-        return done(null, result);
+        // The `done` callback expects the user object as the second argument.
+        // The `result` from `googleAuth` contains the user object along with tokens.
+        // We pass the entire result object so it can be accessed in the controller's
+        // `googleAuthCallback` method via `req.user`.
+        return done(null, result as any);
       } catch (error) {
         return done(error as Error, undefined);
       }

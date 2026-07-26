@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
-export const apiClient = axios.create({
+const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
@@ -13,11 +13,9 @@ export const apiClient = axios.create({
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -26,26 +24,45 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle errors
+// Response interceptor to handle token refresh
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // If error is 401 and we haven't retried yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Only attempt to refresh if the error is 401, we haven't retried,
+    // and there was a token in the first place.
+    const token = localStorage.getItem('accessToken');
+
+    if (token && error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      // Clear token and redirect to login
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
+      try {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (!refreshToken) {
+          throw new Error('No refresh token');
+        }
+
+        // TODO: Implement token refresh endpoint
+        // const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+        // const { accessToken } = response.data;
+        // localStorage.setItem('accessToken', accessToken);
+        // originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        // return apiClient(originalRequest);
+
+        // For now, just redirect to login
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
         window.location.href = '/auth/login';
+      } catch (refreshError) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        window.location.href = '/auth/login';
+        return Promise.reject(refreshError);
       }
     }
 
-    // Format error message
-    const message = error.response?.data?.message || error.message || 'An error occurred';
-    return Promise.reject(new Error(message));
+    return Promise.reject(error);
   }
 );
 

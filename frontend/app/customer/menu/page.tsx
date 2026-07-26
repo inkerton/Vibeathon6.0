@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/Card';
@@ -8,7 +9,7 @@ import { Badge } from '@/components/Badge';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { Toast } from '@/components/Toast';
-import { apiClient } from '@/lib/api-client';
+import apiClient from '@/lib/api-client';
 
 interface MenuItem {
   id: string;
@@ -41,21 +42,22 @@ export default function CustomerMenu() {
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' as 'success' | 'error' });
 
   useEffect(() => {
+    const fetchMenu = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const response = await apiClient.get('/menu');
+        setMenuItems(response.data.data || []);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load menu');
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchMenu();
   }, []);
 
-  const fetchMenu = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const response = await apiClient.get('/menu');
-      setMenuItems(response.data || []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load menu');
-    } finally {
-      setLoading(false);
-    }
-  };
+  
 
   const addToCart = (item: MenuItem) => {
     const existingItem = cart.find(cartItem => cartItem.menuItem.id === item.id);
@@ -182,13 +184,16 @@ export default function CustomerMenu() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {filteredItems.map(item => (
                   <Card key={item.id} className="hover:shadow-lg transition-shadow">
-                    {item.imageUrl && (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name}
-                        className="w-full h-48 object-cover rounded-lg mb-4"
-                      />
-                    )}
+                    <div className="relative w-full h-48 mb-4">
+                      {item.imageUrl && (
+                        <Image
+                          src={item.imageUrl}
+                          alt={item.name}
+                          fill
+                          className="object-cover rounded-lg"
+                        />
+                      )}
+                    </div>
                     <div className="space-y-3">
                       <div className="flex justify-between items-start">
                         <div>

@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card } from '@/components/Card';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorMessage } from '@/components/ErrorMessage';
-import { apiClient } from '@/lib/api-client';
+import apiClient from '@/lib/api-client';
 
 interface DashboardStats {
   ordersToday: number;
@@ -20,15 +20,12 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchDashboardStats();
-  }, []);
-
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = useCallback(async () => {
     try {
-      setLoading(true);
+      // Reset error and set loading state for manual refreshes
       setError('');
-      
+      setLoading(true);
+
       // Fetch data from multiple endpoints
       const [ordersRes, inventoryRes, reservationsRes] = await Promise.all([
         apiClient.get('/orders/active'),
@@ -36,22 +33,23 @@ export default function AdminDashboard() {
         apiClient.get('/reservations'),
       ]);
 
-      const orders = ordersRes.data || [];
-      const lowStockItems = inventoryRes.data || [];
-      const reservations = reservationsRes.data || [];
+      const orders = ordersRes.data.data || [];
+      const lowStockItems = inventoryRes.data.data || [];
+      const reservations = reservationsRes.data.data || [];
 
       // Calculate stats
       const today = new Date().toISOString().split('T')[0];
-      const todayOrders = orders.filter((o: any) => 
-        o.createdAt.startsWith(today)
-      );
-      
-      const todayReservations = reservations.filter((r: any) => 
-        r.date.startsWith(today) && r.status !== 'cancelled'
+      const todayOrders = orders.filter((o: any) =>
+        o.created_at.startsWith(today)
       );
 
-      const revenueToday = todayOrders.reduce((sum: number, order: any) => 
-        sum + (order.totalAmount || 0), 0
+      const todayReservations = reservations.filter(
+        (r: any) => r.date.startsWith(today) && r.status !== 'cancelled'
+      );
+
+      const revenueToday = todayOrders.reduce(
+        (sum: number, order: any) => sum + (order.total_amount || 0),
+        0
       );
 
       // Mock occupancy calculation (would need table status endpoint)
@@ -70,7 +68,12 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+      fetchDashboardStats();
+  }, [fetchDashboardStats]); // The dependency array is correct.
+
 
   if (loading) {
     return <LoadingSpinner size="lg" className="py-20" />;
@@ -176,7 +179,7 @@ export default function AdminDashboard() {
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 font-medium">Today's Reservations</p>
+              <p className="text-sm text-gray-600 font-medium">Today&aposs Reservations</p>
               <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.todayReservations || 0}</p>
             </div>
             <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">

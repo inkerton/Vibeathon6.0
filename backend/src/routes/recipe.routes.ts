@@ -11,7 +11,7 @@ const recipeController = new RecipeController();
 router.use(authMiddleware);
 
 // Get recipe for a menu item (any authenticated user)
-router.get('/menu/:menuItemId', authHandler(recipeController.getRecipeByMenuItemId.bind(recipeController)));
+router.get('/menu/:menuItemId', authHandler(recipeController.getMenuItemRecipe.bind(recipeController)));
 
 // Add ingredient to recipe (inventory staff and admin)
 router.post(

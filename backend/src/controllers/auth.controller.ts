@@ -128,7 +128,7 @@ export class AuthController {
   }
 
   // Google OAuth callback handler
-  googleAuthCallback(req: AuthRequest, res: Response, next: NextFunction) {
+  async googleAuthCallback(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       // Passport attaches the user data to req.user after successful authentication
       const authData = req.user as any;
