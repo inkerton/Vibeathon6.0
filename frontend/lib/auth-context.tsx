@@ -30,19 +30,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Check if user is already logged in
     const checkAuth = async () => {
-      const token = localStorage.getItem('accessToken');
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       if (token) {
         try {
           const response = await apiClient.get('/auth/me');
-          setUser(response.data.data);
+          const userData = response.data;
+          setUser(userData);
           
           // Connect socket with token
           socketClient.connect(token);
-          socketClient.joinRoleRoom(response.data.data.role);
+          socketClient.joinRoleRoom(userData.role);
         } catch (error) {
           console.error('Auth check failed:', error);
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
+          localStorage.removeItem('token');
         }
       }
       setLoading(false);

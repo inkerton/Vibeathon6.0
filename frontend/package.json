@@ -3,9 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
+    "dev:mock": "NEXT_PUBLIC_API_MODE=mock next dev -p 3001",
+    "dev:live": "NEXT_PUBLIC_API_MODE=live next dev -p 3001",
     "build": "next build",
-    "start": "next start",
+    "build:mock": "NEXT_PUBLIC_API_MODE=mock next build",
+    "start": "next start -p 3001",
+    "start:mock": "NEXT_PUBLIC_API_MODE=mock next start -p 3001",
     "lint": "eslint"
   },
   "dependencies": {
