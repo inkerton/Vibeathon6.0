@@ -237,7 +237,7 @@ export default function MenuManagement() {
           variant={
             row.original.isAvailable
               ? "success"
-              : "gray"
+              : "secondary"
           }
         >
           {row.original.isAvailable

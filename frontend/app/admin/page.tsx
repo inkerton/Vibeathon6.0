@@ -286,32 +286,19 @@ export default function AdminDashboard() {
                   <span>{card.trend}</span>
                 </div>
               </div>
-            </div>
-            <div className="p-3 bg-red-100 rounded-lg">
-              <AlertTriangle className="w-8 h-8 text-red-600" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Today's Revenue */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Today's Revenue</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                ${Number(stats.todayRevenue).toFixed(2)}
-              </p>
-              <div className="flex items-center mt-2 text-sm text-green-600">
-                <DollarSign className="w-4 h-4 mr-1" />
-                <span>Completed orders</span>
+              <div className={`p-3 rounded-lg ${card.iconClass}`}>
+                {card.icon}
               </div>
             </div>
-            <div className="p-3 bg-green-100 rounded-lg">
-              <DollarSign className="w-8 h-8 text-green-600" />
-            </div>
-          </div>
-        </Card>
+          </Card>
+        ))}
 
+      </div>
+
+      {/* Quick Stats */}
+
+      {/* Detailed Overview */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Staff Overview */}
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -353,7 +340,6 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Quick Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Orders by Status */}
         <Card>

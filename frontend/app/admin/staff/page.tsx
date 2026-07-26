@@ -9,6 +9,24 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { Toast } from '@/components/Toast';
 import { apiClient } from '@/lib/api-client';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  TableSortLabel,
+  Paper,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Box,
+} from '@mui/material';
+import { visuallyHidden } from '@mui/utils';
 
 // Backend response type
 interface StaffResponse {
@@ -245,7 +263,7 @@ const [statusFilter, setStatusFilter] = useState("all");
       setError(err.response?.data?.message || err.message || 'Failed to load staff');
     } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   const handleRequestSort = (
@@ -377,7 +395,7 @@ const visibleRows = [...filteredStaff]
         inventory: "success",
       };
 
-    return variants[role] || "gray";
+    return variants[role] || "secondary";
   };
 
   if (loading) {
@@ -486,20 +504,20 @@ const visibleRows = [...filteredStaff]
                       <Badge variant={getRoleBadgeVariant(member.role)}>
                         {member.role.toUpperCase()}
                       </Badge>
-                    </td>
-                    <td>
-                      <Badge variant={member.is_active ? 'success' : 'gray'}>
-                        {member.is_active ? 'Active' : 'Inactive'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={member.isActive ? 'success' : 'secondary'}>
+                        {member.isActive ? 'Active' : 'Inactive'}
                       </Badge>
-                    </td>
-                    <td>{new Date(member.created_at).toLocaleDateString()}</td>
-                    <td>
+                    </TableCell>
+                    <TableCell>{new Date(member.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
                       <Button
                         size="sm"
-                        variant={member.is_active ? 'danger' : 'success'}
-                        onClick={() => handleToggleActive(member.id, member.is_active)}
+                        variant={member.isActive ? 'danger' : 'success'}
+                        onClick={() => handleToggleActive(member.id, member.isActive)}
                       >
-                        {member.is_active ? 'Deactivate' : 'Activate'}
+                        {member.isActive ? 'Deactivate' : 'Activate'}
                       </Button>
                     </TableCell>
                   </TableRow>
