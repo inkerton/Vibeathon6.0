@@ -10,7 +10,7 @@ const orderService = new OrderService();
 
 // Validation schemas
 const createOrderSchema = z.object({
-  table_id: z.string().cuid('Invalid table ID'),
+  table_number: z.number().int().positive('Table number must be a positive integer'),
   items: z.array(
     z.object({
       menu_item_id: z.string().cuid('Invalid menu item ID'),
@@ -44,7 +44,7 @@ export class OrderController {
 
       const order = await orderService.createOrder({
         customer_id: req.user.id,
-        table_id: validatedData.table_id,
+        table_number: validatedData.table_number,
         items: validatedData.items,
         payment_method: validatedData.payment_method,
       });

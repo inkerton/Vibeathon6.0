@@ -55,7 +55,24 @@ export default function InventoryManagement() {
       setLoading(true);
       setError('');
       const response = await apiClient.get('/inventory');
-      setInventory(response.data.data || []);
+      
+      // Backend returns { status: 'success', data: [...] }
+      const inventoryData = response.data?.data || [];
+      
+      // Transform backend format to frontend format
+      const transformedInventory = inventoryData.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        unit: item.unit,
+        totalQuantity: item.total_stock || 0,
+        reservedQuantity: item.reserved_stock || 0,
+        availableQuantity: (item.total_stock || 0) - (item.reserved_stock || 0),
+        reorderLevel: item.reorder_threshold || 0,
+        reorderQuantity: item.reorder_quantity || 0,
+        lastRestockedAt: item.last_restocked_at || null,
+      }));
+      
+      setInventory(transformedInventory);
     } catch (err: any) {
       setError(err.message || 'Failed to load inventory');
     } finally {
@@ -92,8 +109,9 @@ export default function InventoryManagement() {
       setSubmitting(true);
       const quantity = parseFloat(adjustForm.quantity);
       await apiClient.post(`/inventory/${selectedItem.id}/adjust`, {
-        quantity: adjustForm.type === 'remove' ? -quantity : quantity,
+        quantity: quantity,
         reason: adjustForm.reason,
+        is_increase: adjustForm.type === 'add',
       });
       setToast({ show: true, message: 'Stock adjusted successfully', type: 'success' });
       setIsAdjustModalOpen(false);

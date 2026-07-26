@@ -53,6 +53,10 @@ export class StaffController {
       if (req.query.search) {
         filters.search = req.query.search as string;
       }
+      
+      if (req.query.id) {
+        filters.id = req.query.id as string;
+      }
 
       const staff = await staffService.getAllStaff(filters);
 

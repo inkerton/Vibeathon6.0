@@ -80,9 +80,16 @@ export default function StaffManagement() {
       setError('');
       const response = await apiClient.get('/staff');
       
-      // Handle consistent response structure - data is array directly
-      const staffData = Array.isArray(response.data) ? response.data : [];
-      setStaff(staffData.map(transformStaffResponse));
+      // Backend returns { status: 'success', data: [...] }
+      // Extract the actual data array from response.data.data
+      const staffData = response.data?.data || [];
+      
+      if (Array.isArray(staffData)) {
+        setStaff(staffData.map(transformStaffResponse));
+      } else {
+        console.error('Staff data is not an array:', staffData);
+        setStaff([]);
+      }
     } catch (err: any) {
       console.error('Failed to fetch staff:', err);
       setError(err.response?.data?.message || err.message || 'Failed to load staff');
@@ -221,18 +228,18 @@ export default function StaffManagement() {
                       </Badge>
                     </td>
                     <td>
-                      <Badge variant={member.isActive ? 'success' : 'gray'}>
-                        {member.isActive ? 'Active' : 'Inactive'}
+                      <Badge variant={member.is_active ? 'success' : 'gray'}>
+                        {member.is_active ? 'Active' : 'Inactive'}
                       </Badge>
                     </td>
-                    <td>{new Date(member.createdAt).toLocaleDateString()}</td>
+                    <td>{new Date(member.created_at).toLocaleDateString()}</td>
                     <td>
                       <Button
                         size="sm"
-                        variant={member.isActive ? 'danger' : 'success'}
-                        onClick={() => handleToggleActive(member.id, member.isActive)}
+                        variant={member.is_active ? 'danger' : 'success'}
+                        onClick={() => handleToggleActive(member.id, member.is_active)}
                       >
-                        {member.isActive ? 'Deactivate' : 'Activate'}
+                        {member.is_active ? 'Deactivate' : 'Activate'}
                       </Button>
                     </td>
                   </tr>

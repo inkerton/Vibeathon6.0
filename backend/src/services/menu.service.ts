@@ -122,6 +122,12 @@ export class MenuService {
       throw new AppError('Menu item not found', 404);
     }
 
+    // Delete related recipe items first to avoid foreign key constraint violation
+    await prisma.recipeItem.deleteMany({
+      where: { menu_item_id: id },
+    });
+
+    // Now delete the menu item
     await prisma.menuItem.delete({
       where: { id },
     });

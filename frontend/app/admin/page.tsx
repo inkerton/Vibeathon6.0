@@ -76,37 +76,53 @@ export default function AdminDashboard() {
         apiClient.get('/staff')
       ]);
 
+      // Backend returns { status: 'success', data: [...] }
+      // Extract the actual data array from response.data.data
+      const ordersData = ordersRes.data?.data || [];
+      const inventoryData = inventoryRes.data?.data || [];
+      const reservationsData = reservationsRes.data?.data || [];
+      const staffData = staffRes.data?.data || [];
+
       // Handle response data - ensure arrays
-      const orders = Array.isArray(ordersRes.data) ? ordersRes.data : [];
-      const lowStockItems = Array.isArray(inventoryRes.data) ? inventoryRes.data : [];
-      const reservations = Array.isArray(reservationsRes.data) ? reservationsRes.data : [];
-      const staff = Array.isArray(staffRes.data) ? staffRes.data : [];
+      const orders = Array.isArray(ordersData) ? ordersData : [];
+      const reservations = Array.isArray(reservationsData) ? reservationsData : [];
+      const staff = Array.isArray(staffData) ? staffData : [];
+      
+      // Transform inventory data from snake_case to camelCase
+      const lowStockItems = (Array.isArray(inventoryData) ? inventoryData : []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        unit: item.unit,
+        category: item.category || 'General',
+        availableStock: (item.total_stock || 0) - (item.reserved_stock || 0),
+        reorderThreshold: item.reorder_threshold || 0,
+      }));
 
       // Calculate stats
       const today = new Date().toISOString().split('T')[0];
       
       const activeOrders = orders.filter((o: any) => 
-        ['placed', 'preparing', 'ready'].includes(o.orderStatus)
+        ['placed', 'preparing', 'ready'].includes(o.order_status)
       );
 
       const completedToday = orders.filter((o: any) => 
-        o.orderStatus === 'completed' && 
-        o.updatedAt.startsWith(today)
+        o.order_status === 'completed' && 
+        o.updated_at.startsWith(today)
       );
 
       const todayRevenue = completedToday.reduce((sum: number, o: any) => 
-        sum + o.totalAmount, 0
+        sum + o.total_amount, 0
       );
 
       const ordersByStatus = {
-        placed: orders.filter((o: any) => o.orderStatus === 'placed').length,
-        preparing: orders.filter((o: any) => o.orderStatus === 'preparing').length,
-        ready: orders.filter((o: any) => o.orderStatus === 'ready').length,
-        completed: orders.filter((o: any) => o.orderStatus === 'completed').length
+        placed: orders.filter((o: any) => o.order_status === 'placed').length,
+        preparing: orders.filter((o: any) => o.order_status === 'preparing').length,
+        ready: orders.filter((o: any) => o.order_status === 'ready').length,
+        completed: orders.filter((o: any) => o.order_status === 'completed').length
       };
 
       const reservationsToday = reservations.filter((r: any) => 
-        r.reservationDate === today
+        r.date === today
       );
 
       const reservationsByStatus = {
@@ -116,11 +132,11 @@ export default function AdminDashboard() {
       };
 
       const recentOrders = orders
-        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 5);
 
       // Calculate staff statistics
-      const activeStaff = staff.filter((s: any) => s.isActive);
+      const activeStaff = staff.filter((s: any) => s.is_active);
       const staffByRole = {
         admin: staff.filter((s: any) => s.role === 'admin').length,
         kitchen: staff.filter((s: any) => s.role === 'kitchen').length,
@@ -271,7 +287,7 @@ export default function AdminDashboard() {
             <div>
               <p className="text-sm font-medium text-gray-600">Today's Revenue</p>
               <p className="text-3xl font-bold text-gray-900 mt-2">
-                ${stats.todayRevenue.toFixed(2)}
+                ${Number(stats.todayRevenue).toFixed(2)}
               </p>
               <div className="flex items-center mt-2 text-sm text-green-600">
                 <DollarSign className="w-4 h-4 mr-1" />
@@ -438,25 +454,25 @@ export default function AdminDashboard() {
                       </span>
                       <span className="mx-2 text-gray-400">•</span>
                       <span className="text-sm text-gray-600">
-                        Table {order.tableNumber}
+                        Table {order.table.table_number}
                       </span>
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {new Date(order.createdAt).toLocaleTimeString()}
+                      {new Date(order.created_at).toLocaleTimeString()}
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm font-semibold text-gray-900">
-                      ${order.totalAmount.toFixed(2)}
+                ${Number(order.total_amount || 0).toFixed(2)}
                     </span>
                     <Badge
                       variant={
-                        order.orderStatus === 'completed' ? 'success' :
-                        order.orderStatus === 'ready' ? 'success' :
-                        order.orderStatus === 'preparing' ? 'warning' : 'info'
+                        order.order_status === 'completed' ? 'success' :
+                        order.order_status === 'ready' ? 'success' :
+                        order.order_status === 'preparing' ? 'warning' : 'info'
                       }
                     >
-                      {order.orderStatus}
+                      {order.order_status}
                     </Badge>
                   </div>
                 </div>

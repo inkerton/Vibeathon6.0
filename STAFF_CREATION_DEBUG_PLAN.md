@@ -1,10 +1,10 @@
 # Staff Creation 400 Error - Debug Plan
 
 ## Error Details
-
 **Error:** `AxiosError: Request failed with status code 400`
 **Location:** `frontend/app/admin/staff/page.tsx:121:15`
 **Action:** Creating new staff member
+
 
 ## Current Implementation Analysis
 
@@ -20,6 +20,7 @@ const response = await apiClient.post('/staff', {
   password: formData.password,
   role: formData.role,
 });
+
 ```
 
 **Data Sent:**

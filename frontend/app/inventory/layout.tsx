@@ -15,7 +15,7 @@ export default function InventoryLayout({
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'inventory')) {
+    if (!loading && (!user || (user.role !== 'inventory' && user.role !== 'admin'))) {
       router.push('/auth/login');
     }
   }, [user, loading, router]);
@@ -33,7 +33,7 @@ export default function InventoryLayout({
     );
   }
 
-  if (!user || user.role !== 'inventory') {
+  if (!user || (user.role !== 'inventory' && user.role !== 'admin')) {
     return null;
   }
 

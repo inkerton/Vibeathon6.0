@@ -22,6 +22,7 @@ export interface StaffFilters {
   role?: Role;
   is_active?: boolean;
   search?: string;
+  id?: string;
 }
 
 export class StaffService {
@@ -42,6 +43,10 @@ export class StaffService {
 
     if (filters?.is_active !== undefined) {
       where.is_active = filters.is_active;
+    }
+
+    if (filters?.id) {
+      where.id = filters.id;
     }
 
     if (filters?.search) {

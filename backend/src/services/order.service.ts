@@ -8,7 +8,7 @@ const inventoryService = new InventoryService();
 export class OrderService {
   async createOrder(data: {
     customer_id: string;
-    table_id: string;
+    table_number: number;
     items: Array<{
       menu_item_id: string;
       quantity: number;
@@ -16,9 +16,9 @@ export class OrderService {
     }>;
     payment_method: PaymentMethod;
   }) {
-    // Validate table exists
+    // Validate table exists by table_number
     const table = await prisma.table.findUnique({
-      where: { id: data.table_id },
+      where: { table_number: data.table_number },
     });
 
     if (!table) {
@@ -71,7 +71,7 @@ export class OrderService {
       const newOrder = await tx.order.create({
         data: {
           customer_id: data.customer_id,
-          table_id: data.table_id,
+          table_id: table.id,
           total_amount,
           created_by_role: 'customer',
           order_status: OrderStatus.placed,
@@ -101,7 +101,7 @@ export class OrderService {
       // Update table status to occupied if not already
       if (table.status === 'free') {
         await tx.table.update({
-          where: { id: data.table_id },
+          where: { id: table.id },
           data: { 
             status: 'occupied',
             current_order_id: newOrder.id,

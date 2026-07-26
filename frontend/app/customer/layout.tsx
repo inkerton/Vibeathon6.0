@@ -15,7 +15,7 @@ export default function CustomerLayout({
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'customer')) {
+    if (!loading && !user) {
       router.push('/auth/login');
     }
   }, [user, loading, router]);
@@ -33,7 +33,7 @@ export default function CustomerLayout({
     );
   }
 
-  if (!user || user.role !== 'customer') {
+  if (!user) {
     return null;
   }
 
