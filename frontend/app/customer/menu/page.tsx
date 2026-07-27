@@ -167,16 +167,11 @@ export default function CustomerMenu() {
     const newCart = cart
       .map((c) => {
         if (c.menu_item_id === menuItemId) {
-          const qty = c.quantity + delta;
-
-          return qty > 0
-            ? {
-                ...c,
-                quantity: qty,
-              }
-            : c;
+          return {
+            ...c,
+            quantity: c.quantity + delta,
+          };
         }
-
         return c;
       })
       .filter((c) => c.quantity > 0);

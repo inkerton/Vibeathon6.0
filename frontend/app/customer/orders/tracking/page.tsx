@@ -11,18 +11,20 @@ import { OrderItemCard } from '@/components/OrderItemCard';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { Toast } from '@/components/Toast';
 import { apiClient } from '@/lib/api-client';
+import Image from "next/image";
+import { Receipt, RefreshCcw } from "lucide-react";
 
 interface OrderItem {
   id: string;
-  menuItem: {
+  price_at_order: number;
+  menu_item: {
     id: string;
     name: string;
-    price: number;
-    imageUrl?: string | null;
+    image_url?: string | null;
   };
   quantity: number;
-  customInstructions?: string | null;
-  allergyInfo?: string | null;
+  custom_instructions?: string | null;
+  allergy_info?: string | null;
   status: string;
 }
 
@@ -97,7 +99,7 @@ export default function OrderTrackingPage() {
     }
 
     try {
-      await apiClient.patch(`/orders/${orderId}`, { status: 'CANCELLED' });
+      await apiClient.delete(`/orders/${orderId}`);
       setToast({ show: true, message: 'Order cancelled successfully', type: 'success' });
       fetchActiveOrders();
     } catch (err: any) {
@@ -123,7 +125,7 @@ export default function OrderTrackingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-blue-50">
       <Toast
         message={toast.message}
         type={toast.type}
@@ -132,40 +134,60 @@ export default function OrderTrackingPage() {
       />
 
       {/* Header */}
-      <div className="bg-white shadow sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Track Orders</h1>
-              <p className="text-sm text-gray-600">Monitor your active orders in real-time</p>
+      {/* Hero */}
+      <div className="mx-auto max-w-7xl px-4 py-8">
+
+        <div className="overflow-hidden rounded-3xl bg-gradient-to-r  from-blue-600 via-sky-500 to-cyan-500  shadow-xl">
+          <div className="flex flex-col gap-6 p-8 md:flex-row md:items-center md:justify-between">
+
+            <div className="text-white">
+              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20">
+                <Receipt className="h-7 w-7" />
+              </div>
+
+              <h1 className="text-4xl font-bold">
+                Track Orders
+              </h1>
+
+              <p className="mt-2 text-orange-100">
+                Monitor your active orders in real time and stay updated
+                with live kitchen progress.
+              </p>
             </div>
-            <div className="flex items-center gap-3">
-              <button
+
+            <div className="flex flex-wrap gap-3">
+
+              <Button
+                variant="secondary"
+                size="lg"
                 onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
-                  autoRefresh
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-gray-100 text-gray-700'
-                }`}
+                className="gap-2 rounded-xl shadow-lg"
               >
-                <svg className={`w-4 h-4 ${autoRefresh ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
-              </button>
-              <button
-                onClick={() => fetchActiveOrders()}
-                className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                <RefreshCcw
+                  className={`h-4 w-4 ${
+                    autoRefresh ? 'animate-spin' : ''
+                  }`}
+                />
+
+                {autoRefresh
+                  ? 'Auto Refresh ON'
+                  : 'Auto Refresh OFF'}
+              </Button>
+
+              <Button
+                size="lg"
+                onClick={fetchActiveOrders}
+                className="gap-2 rounded-xl bg-white text-orange-600 shadow-lg hover:bg-orange-50"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </button>
+                <RefreshCcw className="h-4 w-4" />
+                Refresh
+              </Button>
+
             </div>
+
           </div>
         </div>
       </div>
-
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && <ErrorMessage message={error} className="mb-6" />}
 

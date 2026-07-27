@@ -17,11 +17,11 @@ interface Transaction {
   reason?: string;
   notes?: string;
   created_at: string;
-  inventory_item: {
+  item: {
     name: string;
     unit: string;
   };
-  user: {
+  performed_by: {
     name: string;
   };
 }
@@ -130,8 +130,8 @@ export default function InventoryTransactions() {
                     <tr key={txn.id}>
                       <td className="text-sm">{formatDate(txn.created_at)}</td>
                       <td>
-                        <div className="font-medium">{txn.inventory_item.name}</div>
-                        <div className="text-sm text-gray-500">{txn.inventory_item.unit}</div>
+                        <div className="font-medium">{txn.item.name}</div>
+                        <div className="text-sm text-gray-500">{txn.item.unit}</div>
                       </td>
                       <td>
                         <Badge variant={badge.variant}>{badge.label}</Badge>
@@ -146,7 +146,7 @@ export default function InventoryTransactions() {
                         <span className="mx-1">→</span>
                         <span className="font-medium">{txn.new_stock}</span>
                       </td>
-                      <td>{txn.user.name}</td>
+                      <td>{txn.performed_by.name}</td>
                       <td className="text-sm text-gray-600">{txn.reason || txn.notes || '-'}</td>
                     </tr>
                   );

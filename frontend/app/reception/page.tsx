@@ -1,14 +1,49 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Card } from '@/components/Card';
-import { Button } from '@/components/Button';
-import { Badge } from '@/components/Badge';
-import { Modal } from '@/components/Modal';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { ErrorMessage } from '@/components/ErrorMessage';
-import { Toast } from '@/components/Toast';
+import * as React from 'react';
+import { useEffect, useMemo, useState } from 'react';
+
 import { apiClient } from '@/lib/api-client';
+import { Toast } from '@/components/Toast';
+import { ErrorMessage } from '@/components/ErrorMessage';
+import { Modal } from '@/components/Modal';
+
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
+
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/Badge';
+
+import {
+  CalendarDays,
+  Clock3,
+  Users,
+  CreditCard,
+  RefreshCcw,
+  ClipboardList,
+  Receipt,
+} from 'lucide-react';
+
+/* ---------------- MUI TABLE ---------------- */
+
+import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
+import TableRow from '@mui/material/TableRow';
+import TableSortLabel from '@mui/material/TableSortLabel';
+import { visuallyHidden } from '@mui/utils';
+
+/* ---------------- TYPES ---------------- */
 
 interface Reservation {
   id: string;
@@ -44,463 +79,1458 @@ interface Order {
   };
 }
 
+type OrderDirection = 'asc' | 'desc';
+
+/* ---------------- TABLE ---------------- */
+
+interface HeadCell {
+  id: keyof Reservation | 'customer';
+  label: string;
+  numeric: boolean;
+}
+
+const reservationHeadCells: readonly HeadCell[] = [
+  {
+    id: 'date',
+    label: 'Time',
+    numeric: false,
+  },
+  {
+    id: 'customer',
+    label: 'Customer',
+    numeric: false,
+  },
+  {
+    id: 'party_size',
+    label: 'Guests',
+    numeric: true,
+  },
+  {
+    id: 'table_id',
+    label: 'Table',
+    numeric: false,
+  },
+  {
+    id: 'status',
+    label: 'Status',
+    numeric: false,
+  },
+];
+
+function descendingComparator<T>(
+  a: T,
+  b: T,
+  orderBy: keyof T
+) {
+  if (b[orderBy] < a[orderBy]) return -1;
+  if (b[orderBy] > a[orderBy]) return 1;
+  return 0;
+}
+
+function getComparator<Key extends keyof any>(
+  order: OrderDirection,
+  orderBy: Key
+) {
+  return order === 'desc'
+    ? (
+        a: { [key in Key]: number | string },
+        b: { [key in Key]: number | string }
+      ) =>
+        descendingComparator(a, b, orderBy)
+    : (
+        a: { [key in Key]: number | string },
+        b: { [key in Key]: number | string }
+      ) =>
+        -descendingComparator(a, b, orderBy);
+}
+
+interface ReservationTableHeadProps {
+  order: OrderDirection;
+  orderBy: string;
+  onRequestSort: (
+    event: React.MouseEvent<unknown>,
+    property: keyof Reservation
+  ) => void;
+}
+
+function ReservationTableHead({
+  order,
+  orderBy,
+  onRequestSort,
+}: ReservationTableHeadProps) {
+  const createSortHandler =
+    (property: keyof Reservation) =>
+    (event: React.MouseEvent<unknown>) => {
+      onRequestSort(event, property);
+    };
+
+  return (
+    <TableHead>
+      <TableRow>
+        {reservationHeadCells.map((headCell) => (
+          <TableCell
+            key={headCell.id}
+            align={
+              headCell.numeric ? 'right' : 'left'
+            }
+            sortDirection={
+              orderBy === headCell.id ? order : false
+            }
+            sx={{
+              fontWeight: 700,
+              bgcolor: '#eff6ff',
+            }}
+          >
+            {headCell.id === 'customer' ? (
+              headCell.label
+            ) : (
+              <TableSortLabel
+                active={orderBy === headCell.id}
+                direction={
+                  orderBy === headCell.id
+                    ? order
+                    : 'asc'
+                }
+                onClick={createSortHandler(
+                  headCell.id as keyof Reservation
+                )}
+              >
+                {headCell.label}
+
+                {orderBy === headCell.id && (
+                  <Box
+                    component="span"
+                    sx={visuallyHidden}
+                  >
+                    {order === 'desc'
+                      ? 'sorted descending'
+                      : 'sorted ascending'}
+                  </Box>
+                )}
+              </TableSortLabel>
+            )}
+          </TableCell>
+        ))}
+        <TableCell
+          align="center"
+          sx={{
+            fontWeight: 700,
+            bgcolor: '#eff6ff',
+          }}
+        >
+          Actions
+        </TableCell>
+      </TableRow>
+    </TableHead>
+  );
+}
+
+/* ---------------- PAGE ---------------- */
+
 export default function ReceptionDashboard() {
-  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [reservations, setReservations] = useState<
+    Reservation[]
+  >([]);
+
   const [orders, setOrders] = useState<Order[]>([]);
+
   const [loading, setLoading] = useState(true);
+
   const [error, setError] = useState('');
-  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' as 'success' | 'error' });
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+
+  const [
+    selectedReservation,
+    setSelectedReservation,
+  ] = useState<Reservation | null>(null);
+
+  const [
+    isDetailModalOpen,
+    setIsDetailModalOpen,
+  ] = useState(false);
+
+  const [toast, setToast] = useState({
+    show: false,
+    message: '',
+    type: 'success' as
+      | 'success'
+      | 'error',
+  });
+
+  const [filterStatus, setFilterStatus] =
+    useState('all');
+
+  /* Table State */
+
+  const [order, setOrder] =
+    useState<OrderDirection>('asc');
+
+  const [orderBy, setOrderBy] =
+    useState<keyof Reservation>('date');
+
+  const [page, setPage] = useState(0);
+
+  const [rowsPerPage, setRowsPerPage] =
+    useState(10);
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 15000);
+
+    const interval = setInterval(
+      fetchData,
+      15000
+    );
+
     return () => clearInterval(interval);
   }, []);
 
   const fetchData = async () => {
     try {
       setError('');
-      console.log('[Reception] Fetching data...');
-      const [reservationsRes, ordersRes] = await Promise.all([
-        apiClient.get('/reservations'),
-        apiClient.get('/orders/active'),
-      ]);
-      console.log('[Reception] Reservations response:', reservationsRes.data);
-      console.log('[Reception] Orders response:', ordersRes.data);
-      setReservations(reservationsRes.data?.data || []);
-      setOrders(ordersRes.data?.data || []);
-      console.log('[Reception] Data loaded successfully');
+
+      const [reservationsRes, ordersRes] =
+        await Promise.all([
+          apiClient.get('/reservations'),
+          apiClient.get('/orders/active'),
+        ]);
+
+      setReservations(
+        reservationsRes.data?.data || []
+      );
+
+      setOrders(
+        ordersRes.data?.data || []
+      );
     } catch (err: any) {
-      console.error('[Reception] Error fetching data:', err);
-      setError(err.message || 'Failed to load data');
+      setError(
+        err.message || 'Failed to load data'
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const updateReservationStatus = async (reservationId: string, newStatus: string) => {
+  const updateReservationStatus = async (
+    reservationId: string,
+    newStatus: string
+  ) => {
     try {
-      await apiClient.patch(`/reservations/${reservationId}/status`, { status: newStatus });
-      setToast({ show: true, message: `Reservation ${newStatus}`, type: 'success' });
+      await apiClient.patch(
+        `/reservations/${reservationId}/status`,
+        {
+          status: newStatus,
+        }
+      );
+
+      setToast({
+        show: true,
+        message: `Reservation ${newStatus}`,
+        type: 'success',
+      });
+
       fetchData();
+
       setIsDetailModalOpen(false);
     } catch (err: any) {
-      setToast({ show: true, message: err.message || 'Failed to update reservation', type: 'error' });
+      setToast({
+        show: true,
+        message:
+          err.message ||
+          'Failed to update reservation',
+        type: 'error',
+      });
     }
   };
 
-  const updatePaymentStatus = async (orderId: string) => {
+  const updatePaymentStatus = async (
+    orderId: string
+  ) => {
     try {
-      await apiClient.patch(`/orders/${orderId}/payment`, { payment_status: 'paid' });
-      setToast({ show: true, message: 'Payment marked as paid', type: 'success' });
+      await apiClient.patch(
+        `/orders/${orderId}/payment`,
+        {
+          payment_status: 'paid',
+        }
+      );
+
+      setToast({
+        show: true,
+        message: 'Payment marked as paid',
+        type: 'success',
+      });
+
       fetchData();
     } catch (err: any) {
-      setToast({ show: true, message: err.message || 'Failed to update payment', type: 'error' });
+      setToast({
+        show: true,
+        message:
+          err.message ||
+          'Failed to update payment',
+        type: 'error',
+      });
     }
   };
 
-  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+  const updateOrderStatus = async (
+    orderId: string,
+    newStatus: string
+  ) => {
     try {
-      await apiClient.patch(`/orders/${orderId}/status`, { status: newStatus });
-      setToast({ show: true, message: `Order marked as ${newStatus}`, type: 'success' });
+      await apiClient.patch(
+        `/orders/${orderId}/status`,
+        {
+          status: newStatus,
+        }
+      );
+
+      setToast({
+        show: true,
+        message: `Order marked as ${newStatus}`,
+        type: 'success',
+      });
+
       fetchData();
     } catch (err: any) {
-      setToast({ show: true, message: err.message || 'Failed to update order status', type: 'error' });
+      setToast({
+        show: true,
+        message:
+          err.message ||
+          'Failed to update order status',
+        type: 'error',
+      });
     }
   };
 
-  const openReservationDetail = (reservation: Reservation) => {
+  const openReservationDetail = (
+    reservation: Reservation
+  ) => {
     setSelectedReservation(reservation);
     setIsDetailModalOpen(true);
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'warning' | 'info' | 'success' | 'danger' | 'gray'> = {
-      pending: 'warning',
-      confirmed: 'info',
-      seated: 'success',
-      completed: 'gray',
-      cancelled: 'danger',
-    };
-    return variants[status] || 'gray';
-  };
-
   const getTodayReservations = () => {
-    const today = new Date().toISOString().split('T')[0];
-    return reservations.filter(r => r.date && r.date.startsWith(today) && r.status !== 'cancelled');
+    const today = new Date()
+      .toISOString()
+      .split('T')[0];
+
+    return reservations.filter(
+      (r) =>
+        r.date.startsWith(today) &&
+        r.status !== 'cancelled'
+    );
   };
 
-  const filteredReservations = filterStatus === 'all' 
-    ? getTodayReservations()
-    : getTodayReservations().filter(r => r.status === filterStatus);
+  const filteredReservations =
+    filterStatus === 'all'
+      ? getTodayReservations()
+      : getTodayReservations().filter(
+          (r) => r.status === filterStatus
+        );
+
+  const visibleReservations = useMemo(
+    () =>
+      [...filteredReservations]
+        .sort(
+          getComparator(order, orderBy)
+        )
+        .slice(
+          page * rowsPerPage,
+          page * rowsPerPage +
+            rowsPerPage
+        ),
+    [
+      filteredReservations,
+      order,
+      orderBy,
+      page,
+      rowsPerPage,
+    ]
+  );
+
+  const handleRequestSort = (
+    event: React.MouseEvent<unknown>,
+    property: keyof Reservation
+  ) => {
+    const isAsc =
+      orderBy === property &&
+      order === 'asc';
+
+    setOrder(
+      isAsc ? 'desc' : 'asc'
+    );
+
+    setOrderBy(property);
+  };
+
+  const handleChangePage = (
+    event: unknown,
+    newPage: number
+  ) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setRowsPerPage(
+      parseInt(event.target.value, 10)
+    );
+
+    setPage(0);
+  };
 
   if (loading) {
-    return <LoadingSpinner size="lg" className="py-20" />;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <RefreshCcw className="h-10 w-10 animate-spin text-blue-600" />
+      </div>
+    );
   }
-
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isVisible={toast.show}
-        onClose={() => setToast({ ...toast, show: false })}
-      />
+  <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
+    <Toast
+      message={toast.message}
+      type={toast.type}
+      isVisible={toast.show}
+      onClose={() =>
+        setToast((prev) => ({
+          ...prev,
+          show: false,
+        }))
+      }
+    />
 
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900">Reception Dashboard</h1>
-          <Button onClick={fetchData}>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Refresh
-          </Button>
+      <div className="mx-auto max-w-7xl space-y-8">
+
+        {/* Hero */}
+
+        <div className="overflow-hidden rounded-3xl bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 shadow-2xl">
+
+          <div className="flex flex-col gap-8 p-8 lg:flex-row lg:items-center lg:justify-between">
+
+            <div className="text-white">
+
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur">
+                <ClipboardList className="h-8 w-8" />
+              </div>
+
+              <h1 className="text-4xl font-bold tracking-tight">
+                Reception Dashboard
+              </h1>
+
+              <p className="mt-3 max-w-2xl text-blue-100">
+                Monitor reservations, manage guest check-ins,
+                handle payments, and keep track of live orders
+                from one place.
+              </p>
+
+            </div>
+
+            <Button
+              size="lg"
+              onClick={fetchData}
+              className="gap-2 rounded-xl bg-white text-blue-700 shadow-xl hover:bg-blue-50"
+            >
+              <RefreshCcw className="h-4 w-4" />
+              Refresh Dashboard
+            </Button>
+
+          </div>
+
         </div>
 
-        {error && <ErrorMessage message={error} />}
+        {error && (
+          <ErrorMessage message={error} />
+        )}
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
-            <div className="flex items-center justify-between">
+
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+
+          <Card className="rounded-3xl border-0 shadow-lg">
+
+            <CardContent className="flex items-center justify-between p-6">
+
               <div>
-                <p className="text-sm text-gray-600 font-medium">Today's Reservations</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{getTodayReservations().length}</p>
+
+                <p className="text-sm font-medium text-muted-foreground">
+                  Today's Reservations
+                </p>
+
+                <h2 className="mt-2 text-4xl font-bold">
+                  {getTodayReservations().length}
+                </h2>
+
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+
+              <div className="rounded-2xl bg-blue-100 p-4">
+                <CalendarDays className="h-8 w-8 text-blue-600" />
               </div>
-            </div>
+
+            </CardContent>
+
           </Card>
 
-          <Card>
-            <div className="flex items-center justify-between">
+          <Card className="rounded-3xl border-0 shadow-lg">
+
+            <CardContent className="flex items-center justify-between p-6">
+
               <div>
-                <p className="text-sm text-gray-600 font-medium">Pending Check-in</p>
-                <p className="text-3xl font-bold text-yellow-600 mt-2">
-                  {getTodayReservations().filter(r => r.status === 'confirmed').length}
+
+                <p className="text-sm font-medium text-muted-foreground">
+                  Pending Check-ins
                 </p>
+
+                <h2 className="mt-2 text-4xl font-bold text-amber-600">
+                  {
+                    getTodayReservations().filter(
+                      (r) => r.status === "confirmed"
+                    ).length
+                  }
+                </h2>
+
               </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+
+              <div className="rounded-2xl bg-amber-100 p-4">
+                <Clock3 className="h-8 w-8 text-amber-600" />
               </div>
-            </div>
+
+            </CardContent>
+
           </Card>
 
-          <Card>
-            <div className="flex items-center justify-between">
+          <Card className="rounded-3xl border-0 shadow-lg">
+
+            <CardContent className="flex items-center justify-between p-6">
+
               <div>
-                <p className="text-sm text-gray-600 font-medium">Currently Seated</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">
-                  {getTodayReservations().filter(r => r.status === 'seated').length}
+
+                <p className="text-sm font-medium text-muted-foreground">
+                  Guests Seated
                 </p>
+
+                <h2 className="mt-2 text-4xl font-bold text-emerald-600">
+                  {
+                    getTodayReservations().filter(
+                      (r) => r.status === "seated"
+                    ).length
+                  }
+                </h2>
+
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
+
+              <div className="rounded-2xl bg-emerald-100 p-4">
+                <Users className="h-8 w-8 text-emerald-600" />
               </div>
-            </div>
+
+            </CardContent>
+
           </Card>
 
-          <Card>
-            <div className="flex items-center justify-between">
+          <Card className="rounded-3xl border-0 shadow-lg">
+
+            <CardContent className="flex items-center justify-between p-6">
+
               <div>
-                <p className="text-sm text-gray-600 font-medium">Pending Payments</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">
-                  {orders.filter(o => o.payment_status === 'pending_at_table' || o.payment_status === 'unpaid').length}
+
+                <p className="text-sm font-medium text-muted-foreground">
+                  Pending Payments
                 </p>
+
+                <h2 className="mt-2 text-4xl font-bold text-red-600">
+                  {
+                    orders.filter(
+                      (o) =>
+                        o.payment_status === "pending_at_table" ||
+                        o.payment_status === "unpaid"
+                    ).length
+                  }
+                </h2>
+
               </div>
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
+
+              <div className="rounded-2xl bg-red-100 p-4">
+                <CreditCard className="h-8 w-8 text-red-600" />
               </div>
-            </div>
+
+            </CardContent>
+
           </Card>
+
         </div>
 
-        {/* Reservations Section */}
-        <Card title="Today's Reservations">
-          <div className="mb-4 flex gap-2">
-            <button
-              onClick={() => setFilterStatus('all')}
-              className={`px-4 py-2 rounded-lg font-medium ${
-                filterStatus === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilterStatus('confirmed')}
-              className={`px-4 py-2 rounded-lg font-medium ${
-                filterStatus === 'confirmed' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Confirmed
-            </button>
-            <button
-              onClick={() => setFilterStatus('seated')}
-              className={`px-4 py-2 rounded-lg font-medium ${
-                filterStatus === 'seated' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Seated
-            </button>
-          </div>
+        {/* Reservations */}
 
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Customer</th>
-                  <th>Contact</th>
-                  <th>Guests</th>
-                  <th>Table</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredReservations.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-8 text-gray-500">
-                      No reservations found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredReservations.map((reservation) => (
-                    <tr key={reservation.id}>
-                      <td className="font-medium">{new Date(reservation.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</td>
-                      <td>{reservation.customer?.name || 'N/A'}</td>
-                      <td className="text-sm text-gray-600">{reservation.customer?.phone || 'N/A'}</td>
-                      <td>{reservation.party_size}</td>
-                      <td>{reservation.table?.table_number || '-'}</td>
-                      <td>
-                        <Badge variant={getStatusBadge(reservation.status)}>
-                          {reservation.status.toUpperCase()}
-                        </Badge>
-                      </td>
-                      <td>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => openReservationDetail(reservation)}
+        <Card className="overflow-hidden rounded-3xl border-0 shadow-xl">
+
+          <CardHeader className="border-b bg-white">
+
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+
+              <div>
+
+                <CardTitle className="text-2xl text-green-800">
+                  Today's Reservations
+                </CardTitle>
+
+                <CardDescription>
+                  Manage reservations and guest arrivals.
+                </CardDescription>
+
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+
+                {["all", "confirmed", "seated"].map((status) => (
+
+                  <Button
+                    key={status}
+                    variant={
+                      filterStatus === status
+                        ? "default"
+                        : "outline"
+                    }
+                    onClick={() =>
+                      setFilterStatus(status)
+                    }
+                    className="capitalize rounded-xl"
+                  >
+                    {status}
+                  </Button>
+
+                ))}
+
+              </div>
+
+            </div>
+
+          </CardHeader>
+
+          <CardContent className="p-0">
+
+            <TableContainer>
+
+              <Table>
+
+                <ReservationTableHead
+                  order={order}
+                  orderBy={orderBy}
+                  onRequestSort={handleRequestSort}
+                />
+
+                <TableBody>
+
+                  {visibleReservations.length === 0 ? (
+
+                    <TableRow>
+
+                      <TableCell
+                        align="center"
+                        colSpan={6}
+                        sx={{
+                          py: 8,
+                        }}
+                      >
+                        No reservations found.
+                      </TableCell>
+
+                    </TableRow>
+
+                  ) : (
+
+                    visibleReservations.map(
+                      (reservation) => (
+
+                        <TableRow
+                          key={reservation.id}
+                          hover
+                        >
+                          <TableCell>
+                            {new Date(
+                              reservation.date
+                            ).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </TableCell>
+
+                          <TableCell>
+                            <div>
+
+                              <p className="font-semibold">
+                                {reservation.customer
+                                  ?.name || "N/A"}
+                              </p>
+
+                              <p className="text-xs text-muted-foreground">
+                                {reservation.customer
+                                  ?.phone || "-"}
+                              </p>
+
+                            </div>
+                          </TableCell>
+
+                          <TableCell align="right">
+                            {reservation.party_size}
+                          </TableCell>
+
+                          <TableCell>
+                            {reservation.table
+                              ?.table_number || "-"}
+                          </TableCell>
+
+                          <TableCell>
+
+                            <Badge
+                              className={
+                                reservation.status ===
+                                "confirmed"
+                                  ? "bg-blue-600"
+                                  : reservation.status ===
+                                    "seated"
+                                  ? "bg-emerald-600"
+                                  : reservation.status ===
+                                    "pending"
+                                  ? "bg-amber-500"
+                                  : reservation.status ===
+                                    "completed"
+                                  ? "bg-slate-600"
+                                  : "bg-red-600"
+                              }
+                            >
+                              {reservation.status}
+                            </Badge>
+
+                          </TableCell>
+
+                          <TableCell align="center">
+
+                            <div className="flex justify-center gap-2">
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  openReservationDetail(
+                                    reservation
+                                  )
+                                }
+                              >
+                                Details
+                              </Button>
+
+                              {reservation.status ===
+                                "confirmed" && (
+
+                                <Button
+                                  size="sm"
+                                  onClick={() =>
+                                    updateReservationStatus(
+                                      reservation.id,
+                                      "seated"
+                                    )
+                                  }
+                                >
+                                  Check In
+                                </Button>
+
+                              )}
+
+                            </div>
+
+                          </TableCell>
+
+                        </TableRow>
+
+                      )
+                    )
+
+                  )}
+
+                </TableBody>
+
+              </Table>
+
+            </TableContainer>
+
+            <TablePagination
+              component="div"
+              rowsPerPageOptions={[
+                5,
+                10,
+                20,
+              ]}
+              count={filteredReservations.length}
+              page={page}
+              rowsPerPage={rowsPerPage}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={
+                handleChangeRowsPerPage
+              }
+            />
+
+          </CardContent>
+
+        </Card>
+
+        {/* Active Orders */}
+              {/* Active Orders */}
+
+        <Card className="overflow-hidden rounded-3xl border-0 shadow-xl">
+
+          <CardHeader className="border-b bg-white">
+
+            <div className="flex items-center justify-between">
+
+              <div>
+
+                <CardTitle className="flex items-center gap-2 text-2xl text-blue-800">
+                  <Receipt className="h-6 w-6 text-blue-600" />
+                  Active Orders
+                </CardTitle>
+
+                <CardDescription>
+                  Live orders currently being prepared or served.
+                </CardDescription>
+
+              </div>
+
+            </div>
+
+          </CardHeader>
+
+          <CardContent className="p-0">
+
+            <TableContainer>
+
+              <Table>
+
+                <TableHead>
+
+                  <TableRow>
+
+                    <TableCell sx={{ fontWeight: 700 }}>
+                      Order #
+                    </TableCell>
+
+                    <TableCell sx={{ fontWeight: 700 }}>
+                      Table
+                    </TableCell>
+
+                    <TableCell sx={{ fontWeight: 700 }}>
+                      Customer
+                    </TableCell>
+
+                    <TableCell
+                      align="right"
+                      sx={{ fontWeight: 700 }}
+                    >
+                      Amount
+                    </TableCell>
+
+                    <TableCell sx={{ fontWeight: 700 }}>
+                      Status
+                    </TableCell>
+
+                    <TableCell
+                      align="center"
+                      sx={{ fontWeight: 700 }}
+                    >
+                      Actions
+                    </TableCell>
+
+                  </TableRow>
+
+                </TableHead>
+
+                <TableBody>
+
+                  {orders.length === 0 ? (
+
+                    <TableRow>
+
+                      <TableCell
+                        colSpan={6}
+                        align="center"
+                        sx={{ py: 8 }}
+                      >
+                        No active orders.
+                      </TableCell>
+
+                    </TableRow>
+
+                  ) : (
+
+                    orders.map((order) => (
+
+                      <TableRow
+                        hover
+                        key={order.id}
+                      >
+
+                        <TableCell className="font-semibold">
+                          #{order.id.slice(-8)}
+                        </TableCell>
+
+                        <TableCell>
+                          Table {order.table.table_number}
+                        </TableCell>
+
+                        <TableCell>
+                          {order.customer.name}
+                        </TableCell>
+
+                        <TableCell
+                          align="right"
+                          className="font-semibold"
+                        >
+                          ₹
+                          {Number(
+                            order.total_amount
+                          ).toFixed(2)}
+                        </TableCell>
+
+                        <TableCell>
+
+                          <Badge
+                            className={
+                              order.order_status ===
+                              "ready"
+                                ? "bg-emerald-600"
+                                : order.order_status ===
+                                  "preparing"
+                                ? "bg-blue-600"
+                                : "bg-amber-500"
+                            }
                           >
-                            Details
-                          </Button>
-                          {reservation.status === 'confirmed' && (
+                            {order.order_status}
+                          </Badge>
+
+                        </TableCell>
+
+                        <TableCell align="center">
+
+                          {order.order_status ===
+                          "ready" ? (
+
                             <Button
                               size="sm"
-                              variant="success"
-                              onClick={() => updateReservationStatus(reservation.id, 'seated')}
+                              onClick={() =>
+                                updateOrderStatus(
+                                  order.id,
+                                  "served"
+                                )
+                              }
                             >
-                              Check In
+                              Mark Served
                             </Button>
+
+                          ) : order.order_status ===
+                            "served" ? (
+
+                            <Badge className="bg-emerald-600">
+                              Served
+                            </Badge>
+
+                          ) : (
+
+                            <span className="text-muted-foreground">
+                              —
+                            </span>
+
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
 
-        {/* Active Orders Section */}
-        <Card title="Active Orders">
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Order #</th>
-                  <th>Table</th>
-                  <th>Customer</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-8 text-gray-500">
-                      No active orders
-                    </td>
-                  </tr>
-                ) : (
-                  orders.map((order) => (
-                    <tr key={order.id}>
-                      <td className="font-medium">#{order.id.slice(-8)}</td>
-                      <td>Table {order.table.table_number}</td>
-                      <td>{order.customer.name}</td>
-                      <td className="font-bold">₹{Number(order.total_amount).toFixed(2)}</td>
-                      <td>
-                        <Badge variant={
-                          order.order_status === 'ready' ? 'success' : 
-                          order.order_status === 'preparing' ? 'info' : 'warning'
-                        }>
-                          {order.order_status.toUpperCase()}
-                        </Badge>
-                      </td>
-                      <td>
-                        {order.order_status === 'ready' && (
-                          <Button
-                            size="sm"
-                            variant="success"
-                            onClick={() => updateOrderStatus(order.id, 'served')}
-                          >
-                            Mark as Served
-                          </Button>
-                        )}
-                        {order.order_status === 'served' && (
-                          <span className="text-sm text-green-600">✓ Served</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                        </TableCell>
 
-        {/* Pending Payments Section */}
-        <Card title="Pending Payments">
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Order #</th>
-                  <th>Table</th>
-                  <th>Customer</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.filter(o => o.payment_status === 'pending_at_table' || o.payment_status === 'unpaid').length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-8 text-gray-500">
-                      No pending payments
-                    </td>
-                  </tr>
-                ) : (
-                  orders
-                    .filter(o => o.payment_status === 'pending_at_table' || o.payment_status === 'unpaid')
-                    .map((order) => (
-                      <tr key={order.id}>
-                        <td className="font-medium">#{order.id.slice(-8)}</td>
-                        <td>Table {order.table.table_number}</td>
-                        <td>{order.customer.name}</td>
-                      <td className="font-bold">₹{Number(order.total_amount).toFixed(2)}</td>
-                        <td>
-                          <Badge variant="warning">PENDING</Badge>
-                        </td>
-                        <td>
-                          <Button
-                            size="sm"
-                            variant="success"
-                            onClick={() => updatePaymentStatus(order.id)}
-                          >
-                            Mark as Paid
-                          </Button>
-                        </td>
-                      </tr>
+                      </TableRow>
+
                     ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
 
-      {/* Reservation Detail Modal */}
-      <Modal
-        isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-        title="Reservation Details"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setIsDetailModalOpen(false)}>
-              Close
-            </Button>
-            {selectedReservation?.status === 'confirmed' && (
-              <Button
-                variant="success"
-                onClick={() => updateReservationStatus(selectedReservation.id, 'seated')}
-              >
-                Check In
-              </Button>
-            )}
-            {selectedReservation?.status === 'seated' && (
-              <Button
-                variant="success"
-                onClick={() => updateReservationStatus(selectedReservation.id, 'completed')}
-              >
-                Complete
-              </Button>
-            )}
-          </>
-        }
-      >
-        {selectedReservation && (
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Customer Name</label>
-              <p className="text-lg">{selectedReservation.customer?.name || 'N/A'}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Contact</label>
-              <p>{selectedReservation.customer?.phone || 'N/A'}</p>
-              <p className="text-sm text-gray-600">{selectedReservation.customer?.email || 'N/A'}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+                  )}
+
+                </TableBody>
+
+              </Table>
+
+            </TableContainer>
+
+          </CardContent>
+
+        </Card>
+
+        {/* Pending Payments */}
+
+        <Card className="overflow-hidden rounded-3xl border-0 shadow-xl">
+
+          <CardHeader className="border-b bg-white text-red-700 ">
+
+            <div className="flex items-center justify-between">
+
               <div>
-                <label className="text-sm font-medium text-gray-700">Date & Time</label>
-                <p>{new Date(selectedReservation.date).toLocaleDateString()}</p>
-                <p>{new Date(selectedReservation.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+
+                <CardTitle className="flex items-center gap-2 text-2xl">
+                  <CreditCard className="h-6 w-6 text-red-7700" />
+                  Pending Payments
+                </CardTitle>
+
+                <CardDescription>
+                  Orders waiting for payment confirmation.
+                </CardDescription>
+
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">Guests</label>
-                <p className="text-lg font-bold">{selectedReservation.party_size}</p>
-              </div>
+
             </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Table Number</label>
-              <p className="text-lg">{selectedReservation.table?.table_number || 'Not assigned'}</p>
-            </div>
-            {selectedReservation.special_requests && (
-              <div>
-                <label className="text-sm font-medium text-gray-700">Special Requests</label>
-                <p className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                  {selectedReservation.special_requests}
-                </p>
+
+          </CardHeader>
+
+          <CardContent className="p-0">
+
+            <TableContainer>
+
+              <Table>
+
+                <TableHead>
+
+                  <TableRow>
+
+                    <TableCell sx={{ fontWeight: 700 }}>
+                      Order #
+                    </TableCell>
+
+                    <TableCell sx={{ fontWeight: 700 }}>
+                      Table
+                    </TableCell>
+
+                    <TableCell sx={{ fontWeight: 700 }}>
+                      Customer
+                    </TableCell>
+
+                    <TableCell
+                      align="right"
+                      sx={{ fontWeight: 700 }}
+                    >
+                      Amount
+                    </TableCell>
+
+                    <TableCell sx={{ fontWeight: 700 }}>
+                      Payment
+                    </TableCell>
+
+                    <TableCell
+                      align="center"
+                      sx={{ fontWeight: 700 }}
+                    >
+                      Action
+                    </TableCell>
+
+                  </TableRow>
+
+                </TableHead>
+
+                <TableBody>
+
+                  {orders.filter(
+                    (o) =>
+                      o.payment_status ===
+                        "pending_at_table" ||
+                      o.payment_status ===
+                        "unpaid"
+                  ).length === 0 ? (
+
+                    <TableRow>
+
+                      <TableCell
+                        align="center"
+                        colSpan={6}
+                        sx={{ py: 8 }}
+                      >
+                        No pending payments.
+                      </TableCell>
+
+                    </TableRow>
+
+                  ) : (
+
+                    orders
+                      .filter(
+                        (o) =>
+                          o.payment_status ===
+                            "pending_at_table" ||
+                          o.payment_status ===
+                            "unpaid"
+                      )
+                      .map((order) => (
+
+                        <TableRow
+                          hover
+                          key={order.id}
+                        >
+
+                          <TableCell className="font-semibold">
+                            #{order.id.slice(-8)}
+                          </TableCell>
+
+                          <TableCell>
+                            Table{" "}
+                            {order.table.table_number}
+                          </TableCell>
+
+                          <TableCell>
+                            {order.customer.name}
+                          </TableCell>
+
+                          <TableCell
+                            align="right"
+                            className="font-semibold"
+                          >
+                            ₹
+                            {Number(
+                              order.total_amount
+                            ).toFixed(2)}
+                          </TableCell>
+
+                          <TableCell>
+
+                            <Badge className="bg-amber-500">
+                              Pending
+                            </Badge>
+
+                          </TableCell>
+
+                          <TableCell align="center">
+
+                            <Button
+                              size="sm"
+                              className="bg-emerald-600 hover:bg-emerald-700"
+                              onClick={() =>
+                                updatePaymentStatus(
+                                  order.id
+                                )
+                              }
+                            >
+                              Mark Paid
+                            </Button>
+
+                          </TableCell>
+
+                        </TableRow>
+
+                      ))
+
+                  )}
+
+                </TableBody>
+
+              </Table>
+
+            </TableContainer>
+
+          </CardContent>
+
+        </Card>
+              {/* Reservation Details */}
+
+        <Modal
+          isOpen={isDetailModalOpen}
+          onClose={() => setIsDetailModalOpen(false)}
+          title=""
+        >
+          {selectedReservation && (
+            <div className="space-y-6">
+
+              {/* Header */}
+
+              <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 p-6 text-white">
+
+                <div className="flex items-center gap-4">
+
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur">
+                    <Users className="h-7 w-7" />
+                  </div>
+
+                  <div>
+
+                    <h2 className="text-2xl font-bold">
+                      {selectedReservation.customer?.name ||
+                        "Guest"}
+                    </h2>
+
+                    <p className="text-blue-100">
+                      Reservation Details
+                    </p>
+
+                  </div>
+
+                </div>
+
               </div>
-            )}
-            <div>
-              <label className="text-sm font-medium text-gray-700">Status</label>
-              <div className="mt-1">
-                <Badge variant={getStatusBadge(selectedReservation.status)}>
-                  {selectedReservation.status.toUpperCase()}
-                </Badge>
-              </div>
+
+              {/* Customer */}
+
+              <Card className="border-0 shadow-sm">
+
+                <CardHeader>
+
+                  <CardTitle className="text-lg">
+                    Customer Information
+                  </CardTitle>
+
+                </CardHeader>
+
+                <CardContent className="grid gap-5 md:grid-cols-2">
+
+                  <div>
+
+                    <p className="text-sm text-muted-foreground">
+                      Name
+                    </p>
+
+                    <p className="font-semibold">
+                      {selectedReservation.customer?.name ??
+                        "N/A"}
+                    </p>
+
+                  </div>
+
+                  <div>
+
+                    <p className="text-sm text-muted-foreground">
+                      Phone
+                    </p>
+
+                    <p className="font-semibold">
+                      {selectedReservation.customer?.phone ??
+                        "N/A"}
+                    </p>
+
+                  </div>
+
+                  <div className="md:col-span-2">
+
+                    <p className="text-sm text-muted-foreground">
+                      Email
+                    </p>
+
+                    <p className="font-semibold break-all">
+                      {selectedReservation.customer?.email ??
+                        "N/A"}
+                    </p>
+
+                  </div>
+
+                </CardContent>
+
+              </Card>
+
+              {/* Reservation */}
+
+              <Card className="border-0 shadow-sm">
+
+                <CardHeader>
+
+                  <CardTitle className="text-lg">
+                    Reservation Information
+                  </CardTitle>
+
+                </CardHeader>
+
+                <CardContent>
+
+                  <div className="grid gap-5 md:grid-cols-2">
+
+                    <div className="rounded-xl bg-slate-50 p-4">
+
+                      <div className="mb-2 flex items-center gap-2 text-blue-600">
+                        <CalendarDays className="h-5 w-5" />
+                        <span className="font-medium">
+                          Date
+                        </span>
+                      </div>
+
+                      <p className="font-semibold">
+                        {new Date(
+                          selectedReservation.date
+                        ).toLocaleDateString()}
+                      </p>
+
+                    </div>
+
+                    <div className="rounded-xl bg-slate-50 p-4">
+
+                      <div className="mb-2 flex items-center gap-2 text-blue-600">
+                        <Clock3 className="h-5 w-5" />
+                        <span className="font-medium">
+                          Time
+                        </span>
+                      </div>
+
+                      <p className="font-semibold">
+                        {new Date(
+                          selectedReservation.date
+                        ).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+
+                    </div>
+
+                    <div className="rounded-xl bg-slate-50 p-4">
+
+                      <div className="mb-2 flex items-center gap-2 text-blue-600">
+                        <Users className="h-5 w-5" />
+                        <span className="font-medium">
+                          Guests
+                        </span>
+                      </div>
+
+                      <p className="font-semibold">
+                        {selectedReservation.party_size}
+                      </p>
+
+                    </div>
+
+                    <div className="rounded-xl bg-slate-50 p-4">
+
+                      <div className="mb-2 flex items-center gap-2 text-blue-600">
+                        <ClipboardList className="h-5 w-5" />
+                        <span className="font-medium">
+                          Table
+                        </span>
+                      </div>
+
+                      <p className="font-semibold">
+                        {selectedReservation.table
+                          ? `#${selectedReservation.table.table_number}`
+                          : "Not Assigned"}
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                </CardContent>
+
+              </Card>
+
+              {/* Requests */}
+
+              {selectedReservation.special_requests && (
+
+                <Card className="border-0 shadow-sm">
+
+                  <CardHeader>
+
+                    <CardTitle className="text-lg">
+                      Special Requests
+                    </CardTitle>
+
+                  </CardHeader>
+
+                  <CardContent>
+
+                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-relaxed">
+                      {selectedReservation.special_requests}
+                    </div>
+
+                  </CardContent>
+
+                </Card>
+
+              )}
+
+              {/* Status */}
+
+              <Card className="border-0 shadow-sm">
+
+                <CardContent className="flex items-center justify-between p-6">
+
+                  <div>
+
+                    <p className="text-sm text-muted-foreground">
+                      Current Status
+                    </p>
+
+                    <div className="mt-2">
+
+                      <Badge
+                        className={
+                          selectedReservation.status ===
+                          "confirmed"
+                            ? "bg-blue-600"
+                            : selectedReservation.status ===
+                              "seated"
+                            ? "bg-emerald-600"
+                            : selectedReservation.status ===
+                              "completed"
+                            ? "bg-slate-600"
+                            : selectedReservation.status ===
+                              "pending"
+                            ? "bg-amber-500"
+                            : "bg-red-600"
+                        }
+                      >
+                        {selectedReservation.status.toUpperCase()}
+                      </Badge>
+
+                    </div>
+
+                  </div>
+
+                  <div className="flex gap-3">
+
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        setIsDetailModalOpen(false)
+                      }
+                    >
+                      Close
+                    </Button>
+
+                    {selectedReservation.status ===
+                      "confirmed" && (
+
+                      <Button
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                        onClick={() =>
+                          updateReservationStatus(
+                            selectedReservation.id,
+                            "seated"
+                          )
+                        }
+                      >
+                        Check In
+                      </Button>
+
+                    )}
+
+                    {selectedReservation.status ===
+                      "seated" && (
+
+                      <Button
+                        onClick={() =>
+                          updateReservationStatus(
+                            selectedReservation.id,
+                            "completed"
+                          )
+                        }
+                      >
+                        Complete
+                      </Button>
+
+                    )}
+
+                  </div>
+
+                </CardContent>
+
+              </Card>
+
             </div>
-          </div>
-        )}
-      </Modal>
+          )}
+        </Modal>
+      </div>
     </div>
   );
+
 }

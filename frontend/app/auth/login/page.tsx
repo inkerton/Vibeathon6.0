@@ -39,8 +39,19 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(email, password);
-      router.push("/");
+      const userData = await login(email, password);
+      
+      // Redirect based on user role
+      const roleRoutes: Record<string, string> = {
+        customer: '/customer/menu',
+        reception: '/reception',
+        kitchen: '/kitchen',
+        inventory: '/inventory',
+        admin: '/admin',
+      };
+      
+      const redirectPath = roleRoutes[userData.role] || '/';
+      router.push(redirectPath);
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {

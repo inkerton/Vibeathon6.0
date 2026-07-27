@@ -342,7 +342,7 @@ export class InventoryService {
       where,
       include: {
         item: true,
-        user: {
+        performed_by: {
           select: {
             id: true,
             name: true,

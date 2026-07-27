@@ -31,15 +31,30 @@ const resendOTPSchema = z.object({
 export class AuthController {
   async register(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      console.log('[AUTH_CONTROLLER] register() called');
+      console.log('[AUTH_CONTROLLER] Request body:', { 
+        name: req.body.name, 
+        email: req.body.email, 
+        phone: req.body.phone,
+        hasPassword: !!req.body.password 
+      });
+      
       const validatedData = registerSchema.parse(req.body);
+      console.log('[AUTH_CONTROLLER] Validation passed');
+      console.log('[AUTH_CONTROLLER] Calling authService.register()');
+      
       const result = await authService.register(validatedData);
+      console.log('[AUTH_CONTROLLER] Registration successful');
+      console.log('[AUTH_CONTROLLER] Result:', { message: result.message });
       
       res.status(201).json({
         status: 'success',
         data: result,
       });
     } catch (error) {
+      console.error('[AUTH_CONTROLLER] Registration error:', error);
       if (error instanceof z.ZodError) {
+        console.error('[AUTH_CONTROLLER] Validation error:', error.errors);
         return next(new AppError(error.errors[0].message, 400));
       }
       next(error);
@@ -48,15 +63,36 @@ export class AuthController {
 
   async verifyOTP(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      console.log('[AUTH_CONTROLLER] verifyOTP() called');
+      console.log('[AUTH_CONTROLLER] Request body:', { 
+        email: req.body.email, 
+        otp: req.body.otp 
+      });
+      
       const validatedData = verifyOTPSchema.parse(req.body);
+      console.log('[AUTH_CONTROLLER] Validation passed');
+      console.log('[AUTH_CONTROLLER] Calling authService.verifyOTP()');
+      
       const result = await authService.verifyOTP(validatedData.email, validatedData.otp);
+      console.log('[AUTH_CONTROLLER] OTP verification successful');
+      console.log('[AUTH_CONTROLLER] User data:', { 
+        id: result.user.id, 
+        email: result.user.email, 
+        role: result.user.role 
+      });
+      console.log('[AUTH_CONTROLLER] Tokens generated:', { 
+        hasAccessToken: !!result.accessToken, 
+        hasRefreshToken: !!result.refreshToken 
+      });
       
       res.status(200).json({
         status: 'success',
         data: result,
       });
     } catch (error) {
+      console.error('[AUTH_CONTROLLER] OTP verification error:', error);
       if (error instanceof z.ZodError) {
+        console.error('[AUTH_CONTROLLER] Validation error:', error.errors);
         return next(new AppError(error.errors[0].message, 400));
       }
       next(error);
@@ -65,15 +101,36 @@ export class AuthController {
 
   async login(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      console.log('[AUTH_CONTROLLER] login() called');
+      console.log('[AUTH_CONTROLLER] Request body:', { 
+        email: req.body.email,
+        hasPassword: !!req.body.password 
+      });
+      
       const validatedData = loginSchema.parse(req.body);
+      console.log('[AUTH_CONTROLLER] Validation passed');
+      console.log('[AUTH_CONTROLLER] Calling authService.login()');
+      
       const result = await authService.login(validatedData.email, validatedData.password);
+      console.log('[AUTH_CONTROLLER] Login successful');
+      console.log('[AUTH_CONTROLLER] User data:', { 
+        id: result.user.id, 
+        email: result.user.email, 
+        role: result.user.role 
+      });
+      console.log('[AUTH_CONTROLLER] Tokens generated:', { 
+        hasAccessToken: !!result.accessToken, 
+        hasRefreshToken: !!result.refreshToken 
+      });
       
       res.status(200).json({
         status: 'success',
         data: result,
       });
     } catch (error) {
+      console.error('[AUTH_CONTROLLER] Login error:', error);
       if (error instanceof z.ZodError) {
+        console.error('[AUTH_CONTROLLER] Validation error:', error.errors);
         return next(new AppError(error.errors[0].message, 400));
       }
       next(error);

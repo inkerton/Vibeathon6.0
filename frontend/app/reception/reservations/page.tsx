@@ -1,9 +1,49 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import apiClient from '@/lib/api-client';
 import socketClient from '@/lib/socket-client';
+
+// Material React Table
+import {
+  MaterialReactTable,
+  useMaterialReactTable,
+  type MRT_ColumnDef,
+  MRT_GlobalFilterTextField,
+  MRT_ToggleFiltersButton,
+} from 'material-react-table';
+
+// MUI
+import {
+  Box,
+  Button,
+  Chip,
+  IconButton,
+  ListItemIcon,
+  MenuItem,
+  Paper,
+  Stack,
+  Typography,
+  Tooltip,
+  Avatar,
+  lighten,
+} from '@mui/material';
+
+// Icons
+import {
+  Refresh,
+  CheckCircle,
+  Cancel,
+  Restaurant,
+  DoneAll,
+  AccountCircle,
+  Send,
+} from '@mui/icons-material';
+
+// Date Picker
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 
 interface Reservation {
   id: string;
@@ -21,19 +61,30 @@ interface Reservation {
   date: string;
   party_size: number;
   special_request: string | null;
-  status: 'pending' | 'confirmed' | 'seated' | 'cancelled' | 'completed';
+  status:
+    | 'pending'
+    | 'confirmed'
+    | 'seated'
+    | 'cancelled'
+    | 'completed';
   created_at: string;
 }
 
-const statusColors = {
-  pending: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  confirmed: 'bg-blue-100 text-blue-800 border-blue-300',
-  seated: 'bg-green-100 text-green-800 border-green-300',
-  cancelled: 'bg-red-100 text-red-800 border-red-300',
-  completed: 'bg-gray-100 text-gray-800 border-gray-300',
+const statusColors: Record<
+  Reservation['status'],
+  'warning' | 'info' | 'success' | 'error' | 'default'
+> = {
+  pending: 'warning',
+  confirmed: 'info',
+  seated: 'success',
+  cancelled: 'error',
+  completed: 'default',
 };
 
-const statusActions = {
+const statusActions: Record<
+  Reservation['status'],
+  Reservation['status'][]
+> = {
   pending: ['confirmed', 'cancelled'],
   confirmed: ['seated', 'cancelled'],
   seated: ['completed'],
@@ -41,316 +92,661 @@ const statusActions = {
   completed: [],
 };
 
-export default function ReceptionReservationsPage() {
+function ReceptionReservationsContent() {
   const { user } = useAuth();
+
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterDate, setFilterDate] = useState<string>('');
+  const [filterDate, setFilterDate] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user?.role === 'reception' || user?.role === 'admin') {
-      fetchReservations();
-      setupSocketListeners();
-    }
-
-    return () => {
-      socketClient.off('reservation:created');
-      socketClient.off('reservation:status_updated');
-      socketClient.off('reservation:cancelled');
-    };
-  }, [user, filterStatus, filterDate]);
-
-  const fetchReservations = async () => {
+  const fetchReservations = useCallback(async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (filterStatus !== 'all') params.append('status', filterStatus);
-      if (filterDate) params.append('date', filterDate);
 
-      const response = await apiClient.get(`/reservations?${params.toString()}`);
-      setReservations(response.data.data);
+      const params = new URLSearchParams();
+
+      if (filterDate) {
+        params.append('date', filterDate);
+      }
+
+      const response = await apiClient.get(
+        `/reservations?${params.toString()}`
+      );
+
+      setReservations(response.data.data ?? []);
       setError('');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch reservations');
+      setError(
+        err?.response?.data?.message ??
+          'Failed to fetch reservations'
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterDate]);
 
-  const setupSocketListeners = () => {
-    socketClient.on('reservation:created', () => {
-      fetchReservations();
-    });
+  useEffect(() => {
+    if (
+      user?.role !== 'admin' &&
+      user?.role !== 'reception'
+    ) {
+      return;
+    }
 
-    socketClient.on('reservation:status_updated', () => {
-      fetchReservations();
-    });
+    fetchReservations();
 
-    socketClient.on('reservation:cancelled', () => {
-      fetchReservations();
-    });
-  };
+    const refreshReservations = () => fetchReservations();
 
-  const updateReservationStatus = async (reservationId: string, newStatus: string) => {
+    socketClient.on(
+      'reservation:created',
+      refreshReservations,
+    );
+    socketClient.on(
+      'reservation:status_updated',
+      refreshReservations,
+    );
+    socketClient.on(
+      'reservation:cancelled',
+      refreshReservations,
+    );
+
+    return () => {
+      socketClient.off(
+        'reservation:created',
+        refreshReservations,
+      );
+      socketClient.off(
+        'reservation:status_updated',
+        refreshReservations,
+      );
+      socketClient.off(
+        'reservation:cancelled',
+        refreshReservations,
+      );
+    };
+  }, [user, fetchReservations]);
+
+  const updateReservationStatus = async (
+    reservationId: string,
+    newStatus: string,
+  ) => {
     try {
       setUpdatingId(reservationId);
-      await apiClient.patch(`/reservations/${reservationId}/status`, {
-        status: newStatus,
-      });
-      fetchReservations();
+
+      await apiClient.patch(
+        `/reservations/${reservationId}/status`,
+        {
+          status: newStatus,
+        },
+      );
+
+      await fetchReservations();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update reservation status');
+      alert(
+        err?.response?.data?.message ??
+          'Failed to update reservation status',
+      );
     } finally {
       setUpdatingId(null);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+  const formatDate = (value: string) =>
+    new Date(value).toLocaleDateString('en-US', {
       weekday: 'short',
-      year: 'numeric',
       month: 'short',
       day: 'numeric',
+      year: 'numeric',
     });
-  };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', {
+  const formatTime = (value: string) =>
+    new Date(value).toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
 
-  const getTodayDate = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  };
+  const getTodayDate = () =>
+    new Date().toISOString().split('T')[0];
 
-  if (user?.role !== 'reception' && user?.role !== 'admin') {
+  // ===========================================================================
+  // Material React Table Columns
+  // (Continue in Part 1B)
+  // ===========================================================================
+
+  const columns = useMemo<MRT_ColumnDef<Reservation>[]>(
+  () => [
+    {
+      id: 'customer',
+      header: 'Customer',
+      columns: [
+        {
+          accessorFn: (row) => row.customer?.name || 'N/A',
+          id: 'customerName',
+          header: 'Name',
+          size: 220,
+          Cell: ({ row }) => (
+            <Stack spacing={0.5}>
+              <Typography fontWeight={600}>
+                {row.original.customer?.name || 'N/A'}
+              </Typography>
+
+              <Typography
+                variant="body2"
+                color="text.secondary"
+              >
+                {row.original.customer?.email || 'N/A'}
+              </Typography>
+
+              {row.original.customer?.phone && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  {row.original.customer.phone}
+                </Typography>
+              )}
+            </Stack>
+          ),
+        },
+      ],
+    },
+
+    {
+      id: 'tableInfo',
+      header: 'Table',
+      columns: [
+        {
+          accessorFn: (row) => row.table?.table_number || 0,
+          id: 'tableNumber',
+          header: 'Table No.',
+          size: 120,
+          Cell: ({ row }) => (
+            <Stack spacing={0.25}>
+              <Typography fontWeight={600}>
+                Table {row.original.table?.table_number || 'N/A'}
+              </Typography>
+
+              <Typography
+                variant="caption"
+                color="text.secondary"
+              >
+                Capacity: {row.original.table?.capacity || 'N/A'}
+              </Typography>
+            </Stack>
+          ),
+        },
+      ],
+    },
+
+    {
+      id: 'reservationInfo',
+      header: 'Reservation',
+      columns: [
+        {
+          accessorFn: (row) => new Date(row.date),
+          id: 'reservationDate',
+          header: 'Date',
+          sortingFn: 'datetime',
+          filterVariant: 'date',
+          Cell: ({ row }) => (
+            <Stack spacing={0.25}>
+              <Typography fontWeight={500}>
+                {formatDate(row.original.date)}
+              </Typography>
+
+              <Typography
+                variant="caption"
+                color="text.secondary"
+              >
+                {formatTime(row.original.date)}
+              </Typography>
+            </Stack>
+          ),
+        },
+
+        {
+          accessorKey: 'party_size',
+          header: 'Party Size',
+          size: 120,
+          Cell: ({ row }) => (
+            <Stack spacing={0.25}>
+              <Typography>
+                {row.original.party_size}{' '}
+                {row.original.party_size === 1
+                  ? 'Person'
+                  : 'People'}
+              </Typography>
+
+              {row.original.special_request && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  {row.original.special_request}
+                </Typography>
+              )}
+            </Stack>
+          ),
+        },
+
+        {
+          accessorKey: 'status',
+          header: 'Status',
+          filterVariant: 'multi-select',
+          size: 140,
+          Cell: ({ cell }) => (
+            <Chip
+              size="small"
+              label={
+                String(cell.getValue())
+                  .charAt(0)
+                  .toUpperCase() +
+                String(cell.getValue()).slice(1)
+              }
+              color={
+                statusColors[
+                  cell.getValue<Reservation['status']>()
+                ]
+              }
+            />
+          ),
+        },
+      ],
+    },
+        {
+      id: 'actions',
+      header: 'Actions',
+      size: 260,
+      enableColumnFilter: false,
+      enableSorting: false,
+      Cell: ({ row }) => {
+        const reservation = row.original;
+        const actions = statusActions[reservation.status];
+
+        if (actions.length === 0) {
+          return (
+            <Typography
+              variant="body2"
+              color="text.secondary"
+            >
+              No Actions
+            </Typography>
+          );
+        }
+
+        return (
+          <Stack
+            direction="column"
+            spacing={1}
+            sx={{ minWidth: 180 }}
+          >
+            {actions.map((action) => {
+              let color:
+                | 'primary'
+                | 'success'
+                | 'error'
+                | 'secondary'
+                | 'inherit' = 'primary';
+
+              let icon = null;
+
+              switch (action) {
+                case 'confirmed':
+                  color = 'primary';
+                  icon = <CheckCircle fontSize="small" />;
+                  break;
+
+                case 'seated':
+                  color = 'success';
+                  icon = <Restaurant fontSize="small" />;
+                  break;
+
+                case 'completed':
+                  color = 'secondary';
+                  icon = <DoneAll fontSize="small" />;
+                  break;
+
+                case 'cancelled':
+                  color = 'error';
+                  icon = <Cancel fontSize="small" />;
+                  break;
+              }
+
+              return (
+                <Button
+                  key={action}
+                  variant="contained"
+                  color={color}
+                  size="small"
+                  startIcon={icon}
+                  disabled={updatingId === reservation.id}
+                  onClick={() =>
+                    updateReservationStatus(
+                      reservation.id,
+                      action,
+                    )
+                  }
+                >
+                  {updatingId === reservation.id
+                    ? 'Updating...'
+                    : `Mark ${
+                        action.charAt(0).toUpperCase() +
+                        action.slice(1)
+                      }`}
+                </Button>
+              );
+            })}
+          </Stack>
+        );
+      },
+    },
+  ],
+  [updatingId],
+);
+
+const table = useMaterialReactTable({
+  columns,
+  data: reservations,
+
+  state: {
+    isLoading: loading,
+    showProgressBars: loading,
+  },
+
+  enableColumnFilterModes: true,
+  enableColumnOrdering: true,
+  enableColumnPinning: true,
+  enableGrouping: true,
+  enableFacetedValues: true,
+  enableRowSelection: true,
+  enableRowActions: true,
+  enableStickyHeader: true,
+  enableDensityToggle: false,
+  enableFullScreenToggle: true,
+
+  initialState: {
+    showColumnFilters: true,
+    showGlobalFilter: true,
+    pagination: {
+      pageIndex: 0,
+      pageSize: 10,
+    },
+    columnPinning: {
+      left: ['mrt-row-select'],
+      right: ['mrt-row-actions'],
+    },
+  },
+
+  paginationDisplayMode: 'pages',
+  positionToolbarAlertBanner: 'bottom',
+
+  muiSearchTextFieldProps: {
+    placeholder: 'Search reservations...',
+    size: 'small',
+    variant: 'outlined',
+  },
+
+  muiPaginationProps: {
+    color: 'primary',
+    rowsPerPageOptions: [10, 20, 50],
+    shape: 'rounded',
+    variant: 'outlined',
+  },
+
+  muiTablePaperProps: {
+    elevation: 0,
+    sx: {
+      borderRadius: 3,
+      border: '1px solid',
+      borderColor: 'divider',
+      overflow: 'hidden',
+    },
+  },
+
+  muiTableContainerProps: {
+    sx: {
+      maxHeight: '70vh',
+    },
+  },
+
+  muiTableBodyRowProps: ({ row }) => ({
+    hover: true,
+    sx: {
+      transition: 'all 0.2s ease',
+
+      '&:hover': {
+        backgroundColor: 'action.hover',
+      },
+
+      ...(row.original.status === 'cancelled' && {
+        opacity: 0.65,
+      }),
+    },
+  }),
+
+  muiToolbarAlertBannerProps: error
+    ? {
+        color: 'error',
+        children: error,
+      }
+    : undefined,
+
+      renderTopToolbar: ({ table }) => {
+    const selectedRows = table.getSelectedRowModel().flatRows;
+
+    const handleBulkStatusUpdate = async (
+      status: Reservation['status'],
+    ) => {
+      try {
+        await Promise.all(
+          selectedRows.map((row) =>
+            updateReservationStatus(row.original.id, status),
+          ),
+        );
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600">You don't have permission to access this page.</p>
-        </div>
-      </div>
+      <Box
+        sx={(theme) => ({
+          backgroundColor: lighten(
+            theme.palette.background.default,
+            0.04,
+          ),
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 2,
+          p: 2,
+        })}
+      >
+        <Stack direction="row" spacing={1} alignItems="center">
+          <MRT_GlobalFilterTextField table={table} />
+          <MRT_ToggleFiltersButton table={table} />
+
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={fetchReservations}
+          >
+            Refresh
+          </Button>
+
+          <Button
+            variant="outlined"
+            onClick={() => setFilterDate(getTodayDate())}
+          >
+            Today
+          </Button>
+
+          <Button
+            variant="text"
+            onClick={() => setFilterDate('')}
+          >
+            Clear Date
+          </Button>
+        </Stack>
+
+        <Stack direction="row" spacing={1}>
+          <Button
+            color="primary"
+            variant="contained"
+            startIcon={<CheckCircle />}
+            disabled={!table.getIsSomeRowsSelected()}
+            onClick={() =>
+              handleBulkStatusUpdate('confirmed')
+            }
+          >
+            Confirm
+          </Button>
+
+          <Button
+            color="success"
+            variant="contained"
+            startIcon={<Restaurant />}
+            disabled={!table.getIsSomeRowsSelected()}
+            onClick={() =>
+              handleBulkStatusUpdate('seated')
+            }
+          >
+            Seat
+          </Button>
+
+          <Button
+            color="secondary"
+            variant="contained"
+            startIcon={<DoneAll />}
+            disabled={!table.getIsSomeRowsSelected()}
+            onClick={() =>
+              handleBulkStatusUpdate('completed')
+            }
+          >
+            Complete
+          </Button>
+
+          <Button
+            color="error"
+            variant="contained"
+            startIcon={<Cancel />}
+            disabled={!table.getIsSomeRowsSelected()}
+            onClick={() =>
+              handleBulkStatusUpdate('cancelled')
+            }
+          >
+            Cancel
+          </Button>
+        </Stack>
+      </Box>
     );
-  }
+  },
+
+  renderDetailPanel: ({ row }) => (
+    <Box
+      sx={{
+        p: 3,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+      }}
+    >
+      <Typography variant="h6">
+        Reservation Details
+      </Typography>
+
+      <Typography>
+        <strong>Customer:</strong>{' '}
+        {row.original.customer?.name || 'N/A'}
+      </Typography>
+
+      <Typography>
+        <strong>Email:</strong>{' '}
+        {row.original.customer?.email || 'N/A'}
+      </Typography>
+
+      <Typography>
+        <strong>Phone:</strong>{' '}
+        {row.original.customer?.phone ?? 'N/A'}
+      </Typography>
+
+      <Typography>
+        <strong>Table:</strong>{' '}
+        {row.original.table?.table_number || 'N/A'}
+      </Typography>
+
+      <Typography>
+        <strong>Capacity:</strong>{' '}
+        {row.original.table?.capacity || 'N/A'}
+      </Typography>
+
+      <Typography>
+        <strong>Date:</strong>{' '}
+        {formatDate(row.original.date)}
+      </Typography>
+
+      <Typography>
+        <strong>Time:</strong>{' '}
+        {formatTime(row.original.date)}
+      </Typography>
+
+      <Typography>
+        <strong>Party Size:</strong>{' '}
+        {row.original.party_size}
+      </Typography>
+
+      <Typography>
+        <strong>Special Request:</strong>{' '}
+        {row.original.special_request || 'None'}
+      </Typography>
+    </Box>
+  ),
+
+  renderRowActionMenuItems: ({ row, closeMenu }) => [
+    <MenuItem
+      key="view"
+      onClick={() => {
+        console.log(row.original);
+        closeMenu();
+      }}
+    >
+      <ListItemIcon>
+        <AccountCircle />
+      </ListItemIcon>
+      View Reservation
+    </MenuItem>,
+
+    <MenuItem
+      key="email"
+      onClick={() => {
+        if (row.original.customer?.email) {
+          window.location.href = `mailto:${row.original.customer.email}`;
+        }
+        closeMenu();
+      }}
+      disabled={!row.original.customer?.email}
+    >
+      <ListItemIcon>
+        <Send />
+      </ListItemIcon>
+      Email Customer
+    </MenuItem>,
+  ],
+});
+
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Reservations Dashboard</h1>
-              <p className="mt-1 text-sm text-gray-600">
-                Manage all restaurant reservations
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                Total: <span className="font-semibold">{reservations.length}</span>
-              </span>
-              <button
-                onClick={fetchReservations}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Refresh
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filter by Status
-              </label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="seated">Seated</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filter by Date
-              </label>
-              <input
-                type="date"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={() => {
-                  setFilterStatus('all');
-                  setFilterDate('');
-                }}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Clear Filters
-              </button>
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={() => setFilterDate(getTodayDate())}
-                className="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Today's Reservations
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-800">{error}</p>
-          </div>
-        )}
-
-        {/* Loading State */}
-        {loading ? (
-          <div className="bg-white rounded-lg shadow p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading reservations...</p>
-          </div>
-        ) : reservations.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-8 text-center">
-            <p className="text-gray-600">No reservations found.</p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Table
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date & Time
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Party Size
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {reservations.map((reservation) => (
-                  <tr key={reservation.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {reservation.customer.name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {reservation.customer.email}
-                        </div>
-                        {reservation.customer.phone && (
-                          <div className="text-sm text-gray-500">
-                            {reservation.customer.phone}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        Table {reservation.table.table_number}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        Capacity: {reservation.table.capacity}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {formatDate(reservation.date)}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {formatTime(reservation.date)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {reservation.party_size} {reservation.party_size === 1 ? 'person' : 'people'}
-                      </div>
-                      {reservation.special_request && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          Note: {reservation.special_request}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full border ${
-                          statusColors[reservation.status]
-                        }`}
-                      >
-                        {reservation.status.charAt(0).toUpperCase() + reservation.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="flex flex-col space-y-2">
-                        {statusActions[reservation.status].map((action) => (
-                          <button
-                            key={action}
-                            onClick={() => updateReservationStatus(reservation.id, action)}
-                            disabled={updatingId === reservation.id}
-                            className={`px-3 py-1 rounded text-white text-xs font-medium transition-colors ${
-                              updatingId === reservation.id
-                                ? 'bg-gray-400 cursor-not-allowed'
-                                : action === 'confirmed'
-                                ? 'bg-blue-600 hover:bg-blue-700'
-                                : action === 'seated'
-                                ? 'bg-green-600 hover:bg-green-700'
-                                : action === 'completed'
-                                ? 'bg-gray-600 hover:bg-gray-700'
-                                : 'bg-red-600 hover:bg-red-700'
-                            }`}
-                          >
-                            {updatingId === reservation.id
-                              ? 'Updating...'
-                              : `Mark as ${action.charAt(0).toUpperCase() + action.slice(1)}`}
-                          </button>
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Paper sx={{ p: 3 }}>
+        <MaterialReactTable table={table} />
+      </Paper>
+    </LocalizationProvider>
   );
+}
+
+export default function ReceptionReservationsPage() {
+  return <ReceptionReservationsContent />;
 }

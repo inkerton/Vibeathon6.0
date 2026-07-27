@@ -16,9 +16,9 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (data: { name: string; email: string; password: string; phone?: string }) => Promise<void>;
-  verifyOTP: (email: string, otp: string) => Promise<void>;
+  verifyOTP: (email: string, otp: string) => Promise<User>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -56,44 +56,92 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
+    console.log('[AUTH_CONTEXT] login() called');
+    console.log('[AUTH_CONTEXT] Email:', email);
+    
     try {
+      console.log('[AUTH_CONTEXT] Sending POST to /auth/login');
       const response = await apiClient.post('/auth/login', { email, password });
+      console.log('[AUTH_CONTEXT] Login API response:', response.data);
+      
       const { user: userData, accessToken, refreshToken } = response.data.data;
+      console.log('[AUTH_CONTEXT] User data from response:', userData);
+      console.log('[AUTH_CONTEXT] Access token received:', !!accessToken);
+      console.log('[AUTH_CONTEXT] Refresh token received:', !!refreshToken);
 
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
       setUser(userData);
+      console.log('[AUTH_CONTEXT] User state updated');
 
       // Connect socket
+      console.log('[AUTH_CONTEXT] Connecting socket...');
       socketClient.connect(accessToken);
       socketClient.joinRoleRoom(userData.role);
+      console.log('[AUTH_CONTEXT] Socket connected and joined role room:', userData.role);
+      
+      return userData;
     } catch (error: any) {
+      console.error('[AUTH_CONTEXT] Login API error:', error);
+      console.error('[AUTH_CONTEXT] Error response:', error.response?.data);
+      console.error('[AUTH_CONTEXT] Error status:', error.response?.status);
       throw new Error(error.response?.data?.message || 'Login failed');
     }
   };
 
   const register = async (data: { name: string; email: string; password: string; phone?: string }) => {
+    console.log('[AUTH_CONTEXT] register() called');
+    console.log('[AUTH_CONTEXT] Registration data:', { 
+      name: data.name, 
+      email: data.email, 
+      phone: data.phone,
+      hasPassword: !!data.password 
+    });
+    
     try {
-      await apiClient.post('/auth/register', data);
+      console.log('[AUTH_CONTEXT] Sending POST to /auth/register');
+      const response = await apiClient.post('/auth/register', data);
+      console.log('[AUTH_CONTEXT] Registration API response:', response.data);
       // User needs to verify OTP before being logged in
     } catch (error: any) {
+      console.error('[AUTH_CONTEXT] Registration API error:', error);
+      console.error('[AUTH_CONTEXT] Error response:', error.response?.data);
+      console.error('[AUTH_CONTEXT] Error status:', error.response?.status);
       throw new Error(error.response?.data?.message || 'Registration failed');
     }
   };
 
   const verifyOTP = async (email: string, otp: string) => {
+    console.log('[AUTH_CONTEXT] verifyOTP() called');
+    console.log('[AUTH_CONTEXT] Email:', email);
+    console.log('[AUTH_CONTEXT] OTP:', otp);
+    
     try {
+      console.log('[AUTH_CONTEXT] Sending POST to /auth/verify-otp');
       const response = await apiClient.post('/auth/verify-otp', { email, otp });
+      console.log('[AUTH_CONTEXT] OTP verification API response:', response.data);
+      
       const { user: userData, accessToken, refreshToken } = response.data.data;
+      console.log('[AUTH_CONTEXT] User data from response:', userData);
+      console.log('[AUTH_CONTEXT] Access token received:', !!accessToken);
+      console.log('[AUTH_CONTEXT] Refresh token received:', !!refreshToken);
 
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
       setUser(userData);
+      console.log('[AUTH_CONTEXT] User state updated');
 
       // Connect socket
+      console.log('[AUTH_CONTEXT] Connecting socket...');
       socketClient.connect(accessToken);
       socketClient.joinRoleRoom(userData.role);
+      console.log('[AUTH_CONTEXT] Socket connected and joined role room:', userData.role);
+      
+      return userData;
     } catch (error: any) {
+      console.error('[AUTH_CONTEXT] OTP verification API error:', error);
+      console.error('[AUTH_CONTEXT] Error response:', error.response?.data);
+      console.error('[AUTH_CONTEXT] Error status:', error.response?.status);
       throw new Error(error.response?.data?.message || 'OTP verification failed');
     }
   };

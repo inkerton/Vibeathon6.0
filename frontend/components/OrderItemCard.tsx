@@ -2,15 +2,15 @@ import { Badge } from './Badge';
 
 interface OrderItem {
   id: string;
-  menuItem: {
+  price_at_order: number;
+  menu_item: {
     id: string;
     name: string;
-    price: number;
-    imageUrl?: string | null;
+    image_url?: string | null;
   };
   quantity: number;
-  customInstructions?: string | null;
-  allergyInfo?: string | null;
+  custom_instructions?: string | null;
+  allergy_info?: string | null;
   status?: string;
 }
 
@@ -48,10 +48,10 @@ export function OrderItemCard({
   return (
     <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
       <div className="flex gap-4">
-        {showImage && item.menuItem.imageUrl && (
+        {showImage && item.menu_item.image_url && (
           <img
-            src={item.menuItem.imageUrl}
-            alt={item.menuItem.name}
+            src={item.menu_item.image_url}
+            alt={item.menu_item.name}
             className="w-20 h-20 object-cover rounded-lg"
           />
         )}
@@ -59,14 +59,14 @@ export function OrderItemCard({
         <div className="flex-1">
           <div className="flex justify-between items-start mb-2">
             <div>
-              <h4 className="font-semibold text-gray-900">{item.menuItem.name}</h4>
+              <h4 className="font-semibold text-gray-900">{item.menu_item.name}</h4>
               <p className="text-sm text-gray-600">
-          Quantity: {item.quantity} × ₹{Number(item.menuItem.price).toFixed(2)}
+          Quantity: {item.quantity} × ₹{Number(item.price_at_order || 0).toFixed(2)}
               </p>
             </div>
             <div className="text-right">
               <p className="font-bold text-gray-900">
-          ₹{(item.quantity * Number(item.menuItem.price)).toFixed(2)}
+          ₹{(item.quantity * Number(item.price_at_order || 0)).toFixed(2)}
               </p>
               {showStatus && item.status && (
                 <Badge variant={getStatusVariant(item.status)} className="mt-1">
@@ -76,18 +76,18 @@ export function OrderItemCard({
             </div>
           </div>
 
-          {showInstructions && (item.customInstructions || item.allergyInfo) && (
+          {showInstructions && (item.custom_instructions || item.allergy_info) && (
             <div className="mt-3 space-y-2">
-              {item.customInstructions && (
+              {item.custom_instructions && (
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-2">
                   <p className="text-xs font-medium text-blue-900 mb-1">Custom Instructions:</p>
-                  <p className="text-sm text-blue-800">{item.customInstructions}</p>
+                  <p className="text-sm text-blue-800">{item.custom_instructions}</p>
                 </div>
               )}
-              {item.allergyInfo && (
+              {item.allergy_info && (
                 <div className="bg-red-50 border border-red-200 rounded-md p-2">
                   <p className="text-xs font-medium text-red-900 mb-1">⚠️ Allergy Information:</p>
-                  <p className="text-sm text-red-800">{item.allergyInfo}</p>
+                  <p className="text-sm text-red-800">{item.allergy_info}</p>
                 </div>
               )}
             </div>

@@ -11,7 +11,17 @@ const transporter = nodemailer.createTransport({
 });
 
 export const sendOTPEmail = async (email: string, otp: string): Promise<void> => {
-  console.log({otp});
+  console.log('[EMAIL_UTIL] sendOTPEmail() called');
+  console.log('[EMAIL_UTIL] Recipient email:', email);
+  console.log('[EMAIL_UTIL] OTP to send:', otp);
+  console.log('[EMAIL_UTIL] OTP length:', otp.length);
+  console.log('[EMAIL_UTIL] Email configuration:', {
+    host: process.env.EMAIL_HOST,
+    port: process.env.EMAIL_PORT,
+    user: process.env.EMAIL_USER,
+    from: process.env.EMAIL_FROM || 'noreply@restaurant.com',
+    hasPassword: !!process.env.EMAIL_PASSWORD
+  });
   
   const mailOptions = {
     from: process.env.EMAIL_FROM || 'noreply@restaurant.com',
@@ -30,11 +40,26 @@ export const sendOTPEmail = async (email: string, otp: string): Promise<void> =>
     `,
   };
 
+  console.log('[EMAIL_UTIL] Mail options prepared:', {
+    from: mailOptions.from,
+    to: mailOptions.to,
+    subject: mailOptions.subject,
+    htmlLength: mailOptions.html.length
+  });
+
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`OTP email sent to ${email}`);
+    console.log('[EMAIL_UTIL] Attempting to send email...');
+    const info = await transporter.sendMail(mailOptions);
+    console.log('[EMAIL_UTIL] ✅ Email sent successfully!');
+    console.log('[EMAIL_UTIL] Message ID:', info.messageId);
+    console.log('[EMAIL_UTIL] Response:', info.response);
+    console.log(`[EMAIL_UTIL] OTP email sent to ${email}`);
   } catch (error) {
-    console.error('Error sending OTP email:', error);
+    console.error('[EMAIL_UTIL] ❌ Error sending OTP email:', error);
+    console.error('[EMAIL_UTIL] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     throw new Error('Failed to send OTP email');
   }
 };

@@ -35,13 +35,27 @@ export default function RegisterPage() {
     setError("");
     setLoading(true);
 
+    console.log('[REGISTER] Starting registration process');
+    console.log('[REGISTER] Form data:', { 
+      name: formData.name, 
+      email: formData.email, 
+      phone: formData.phone,
+      hasPassword: !!formData.password 
+    });
+
     try {
+      console.log('[REGISTER] Calling register API...');
       await register(formData);
+      console.log('[REGISTER] Registration successful, showing OTP screen');
       setShowOTP(true);
     } catch (err: any) {
+      console.error('[REGISTER] Registration failed:', err);
+      console.error('[REGISTER] Error message:', err.message);
+      console.error('[REGISTER] Error response:', err.response?.data);
       setError(err.message || "Registration failed");
     } finally {
       setLoading(false);
+      console.log('[REGISTER] Registration process completed');
     }
   };
 
@@ -50,13 +64,36 @@ export default function RegisterPage() {
     setError("");
     setLoading(true);
 
+    console.log('[VERIFY_OTP] Starting OTP verification');
+    console.log('[VERIFY_OTP] Email:', formData.email);
+    console.log('[VERIFY_OTP] OTP:', otp);
+
     try {
-      await verifyOTP(formData.email, otp);
-      router.push("/"); // Will redirect based on role
+      console.log('[VERIFY_OTP] Calling verifyOTP API...');
+      const userData = await verifyOTP(formData.email, otp);
+      console.log('[VERIFY_OTP] Verification successful');
+      console.log('[VERIFY_OTP] User data:', userData);
+      
+      // Redirect based on user role
+      const roleRoutes: Record<string, string> = {
+        customer: '/customer/menu',
+        reception: '/reception',
+        kitchen: '/kitchen',
+        inventory: '/inventory',
+        admin: '/admin',
+      };
+      
+      const redirectPath = roleRoutes[userData.role] || '/';
+      console.log('[VERIFY_OTP] Redirecting to:', redirectPath);
+      router.push(redirectPath);
     } catch (err: any) {
+      console.error('[VERIFY_OTP] Verification failed:', err);
+      console.error('[VERIFY_OTP] Error message:', err.message);
+      console.error('[VERIFY_OTP] Error response:', err.response?.data);
       setError(err.message || "OTP verification failed");
     } finally {
       setLoading(false);
+      console.log('[VERIFY_OTP] Verification process completed');
     }
   };
 
