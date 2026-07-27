@@ -18,7 +18,7 @@ if (API_MODE === 'mock') {
     headers: {
       'Content-Type': 'application/json',
     },
-    withCredentials: true,
+    withCredentials: false,
   });
 
   // Request interceptor to add auth token

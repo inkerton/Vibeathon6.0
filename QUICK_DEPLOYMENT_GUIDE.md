@@ -10,6 +10,31 @@ Both frontend and backend build successfully:
 
 ---
 
+## 📁 Monorepo Structure Notice
+
+**Important:** This project uses a monorepo structure:
+```
+Vibeathon6.0/
+├── backend/          # Express + Prisma API
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── src/
+├── frontend/         # Next.js application
+│   ├── package.json
+│   ├── next.config.ts
+│   └── app/
+└── railway.toml      # Railway configuration (included)
+```
+
+**Key Points:**
+- Backend and frontend are separate applications in the same repo
+- Each has its own `package.json` and dependencies
+- Deploy them as **separate services** on your platform
+- Use `railway.toml` for Railway (already configured)
+- Set Root Directory for each deployment
+
+---
+
 ## 🚀 Backend Deployment (Railway/Render)
 
 ### Option A: Railway (Recommended - Fastest)
@@ -27,9 +52,31 @@ Both frontend and backend build successfully:
    - Click "Start a New Project"
    - Select "Deploy from GitHub repo"
    - Connect your GitHub account and select the repository
-   - Select the `backend` folder as root directory
+   - **Important:** Railway will detect the monorepo structure
 
-3. **Environment Variables**
+3. **Configure Build Settings**
+   In Railway dashboard, go to Settings:
+   ```
+   Root Directory: backend
+   Build Command: npm install && npm run build && npx prisma generate
+   Start Command: npx prisma migrate deploy && npm start
+   Watch Paths: backend/**
+   ```
+   
+   Or use `railway.toml` in project root:
+   ```toml
+   [build]
+   builder = "NIXPACKS"
+   buildCommand = "cd backend && npm install && npm run build && npx prisma generate"
+   watchPatterns = ["backend/**"]
+
+   [deploy]
+   startCommand = "cd backend && npx prisma migrate deploy && npm start"
+   restartPolicyType = "ON_FAILURE"
+   restartPolicyMaxRetries = 10
+   ```
+
+4. **Environment Variables**
    Add these in Railway dashboard under "Variables":
    ```env
    NODE_ENV=production
@@ -85,8 +132,15 @@ Both frontend and backend build successfully:
    Region: Choose closest to users
    Branch: main
    Root Directory: backend
-   Build Command: npm install && npm run build && npx prisma generate
-   Start Command: npx prisma migrate deploy && npm start
+   Build Command: cd backend && npm install && npm run build && npx prisma generate
+   Start Command: cd backend && npx prisma migrate deploy && npm start
+   ```
+   
+   **Note:** If Render doesn't support Root Directory for monorepos, use these commands instead:
+   ```
+   Root Directory: (leave empty)
+   Build Command: cd backend && npm install && npm run build && npx prisma generate
+   Start Command: cd backend && npx prisma migrate deploy && npm start
    ```
 
 3. **Environment Variables**
@@ -127,7 +181,13 @@ Both frontend and backend build successfully:
    Build Command: npm run build
    Output Directory: .next
    Install Command: npm install
+   Node Version: 18.x or higher
    ```
+   
+   **For Monorepo:** Vercel auto-detects the frontend folder. If issues occur:
+   - Ensure `Root Directory` is set to `frontend`
+   - Vercel will run commands from within the frontend directory
+   - No need for `cd frontend` in commands
 
 4. **Environment Variables**
    Add in Vercel dashboard under "Settings" → "Environment Variables":
