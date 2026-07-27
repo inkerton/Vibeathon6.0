@@ -435,6 +435,7 @@ export default function MenuManagement() {
               showGlobalFilter: true,
               density: "comfortable",
               pagination: {
+                pageIndex: 0,
                 pageSize: 10,
               },
             }}

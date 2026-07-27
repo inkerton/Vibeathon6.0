@@ -122,7 +122,7 @@ export default function MenuManagement() {
           
           // Fetch in background to update cache
           apiClient.get('/menu?includeUnavailable=true')
-            .then(response => {
+            .then((response: any) => {
               let items = [];
               if (response.data?.data && Array.isArray(response.data.data)) {
                 items = response.data.data;
@@ -134,7 +134,7 @@ export default function MenuManagement() {
                 setMenuItems(items);
               }
             })
-            .catch(err => console.error('Background fetch error:', err));
+            .catch((err: any) => console.error('Background fetch error:', err));
           
           return;
         }
@@ -536,6 +536,7 @@ export default function MenuManagement() {
             showGlobalFilter: true,
             density: "comfortable",
             pagination: {
+              pageIndex: 0,
               pageSize: 10,
             },
           }}

@@ -260,7 +260,7 @@ export default function KitchenDashboard() {
       case 'received':
         return (
           <Badge
-            variant="secondary"
+            variant="warning"
             className="bg-amber-100 text-amber-700 border border-amber-200"
           >
             New
@@ -270,7 +270,7 @@ export default function KitchenDashboard() {
       case 'preparing':
         return (
           <Badge
-            variant="secondary"
+            variant="info"
             className="bg-blue-100 text-blue-700 border border-blue-200"
           >
             Preparing
@@ -280,7 +280,7 @@ export default function KitchenDashboard() {
       case 'ready':
         return (
           <Badge
-            variant="secondary"
+            variant="success"
             className="bg-emerald-100 text-emerald-700 border border-emerald-200"
           >
             Ready
@@ -290,7 +290,7 @@ export default function KitchenDashboard() {
       case 'served':
         return (
           <Badge
-            variant="secondary"
+            variant="success"
             className="bg-green-100 text-green-700 border border-green-200"
           >
             Served
@@ -298,7 +298,7 @@ export default function KitchenDashboard() {
         );
 
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="gray">{status}</Badge>;
     }
   }, []);
 
@@ -349,7 +349,7 @@ export default function KitchenDashboard() {
 
     return (
       <Badge
-        variant="outline"
+        variant="info"
         className={`gap-1 ${color}`}
       >
         <Timer className="h-3.5 w-3.5" />
@@ -407,11 +407,11 @@ export default function KitchenDashboard() {
             </CardTitle>
 
             <CardDescription className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">
+              <Badge variant="info">
                 Table {order.table.table_number}
               </Badge>
 
-              <Badge variant="outline">
+              <Badge variant="info">
                 <Users className="mr-1 h-3 w-3" />
                 {order.customer.name}
               </Badge>
@@ -471,7 +471,7 @@ export default function KitchenDashboard() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <Badge
-                          variant="secondary"
+                          variant="gray"
                           className="rounded-full"
                         >
                           {item.quantity}×
@@ -681,7 +681,7 @@ export default function KitchenDashboard() {
               </p>
             </div>
 
-            <Badge variant="outline" className="px-4 py-2">
+            <Badge variant="info" className="px-4 py-2">
               Live
             </Badge>
           </div>
@@ -762,21 +762,21 @@ export default function KitchenDashboard() {
             <div className="flex flex-wrap gap-2">
 
               <Badge
-                variant="secondary"
+                variant="warning"
                 className="bg-amber-100 text-amber-700"
               >
                 {getOrdersByStatus('placed').length} New
               </Badge>
 
               <Badge
-                variant="secondary"
+                variant="info"
                 className="bg-blue-100 text-blue-700"
               >
                 {getOrdersByStatus('preparing').length} Preparing
               </Badge>
 
               <Badge
-                variant="secondary"
+                variant="success"
                 className="bg-emerald-100 text-emerald-700"
               >
                 {getOrdersByStatus('ready').length} Ready

@@ -368,7 +368,7 @@ type Props = {
 
 const COMPONENT_DEFAULTS = {
     label: "LETTER SWAP",
-    mode: "pingpong",
+    mode: "pingpong" as "forward" | "pingpong",
     reverse: false,
     staggerDuration: 0.1,
     font: {
@@ -381,7 +381,7 @@ const COMPONENT_DEFAULTS = {
     },
     color: "#FFFFFF",
     ease: {
-        type: "spring",
+        type: "spring" as const,
         duration: 0.8,
-    },
+    } as AnimationOptions,
 }

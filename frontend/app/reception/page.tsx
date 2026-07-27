@@ -117,30 +117,38 @@ const reservationHeadCells: readonly HeadCell[] = [
   },
 ];
 
-function descendingComparator<T>(
-  a: T,
-  b: T,
-  orderBy: keyof T
+function descendingComparator(
+  a: Reservation,
+  b: Reservation,
+  orderBy: keyof Reservation | 'customer'
 ) {
-  if (b[orderBy] < a[orderBy]) return -1;
-  if (b[orderBy] > a[orderBy]) return 1;
+  let aValue: any;
+  let bValue: any;
+
+  if (orderBy === 'customer') {
+    aValue = a.customer?.name || '';
+    bValue = b.customer?.name || '';
+  } else if (orderBy === 'table_id') {
+    aValue = a.table?.table_number || 0;
+    bValue = b.table?.table_number || 0;
+  } else {
+    aValue = a[orderBy as keyof Reservation];
+    bValue = b[orderBy as keyof Reservation];
+  }
+
+  if (bValue < aValue) return -1;
+  if (bValue > aValue) return 1;
   return 0;
 }
 
-function getComparator<Key extends keyof any>(
+function getComparator(
   order: OrderDirection,
-  orderBy: Key
+  orderBy: keyof Reservation | 'customer'
 ) {
   return order === 'desc'
-    ? (
-        a: { [key in Key]: number | string },
-        b: { [key in Key]: number | string }
-      ) =>
+    ? (a: Reservation, b: Reservation) =>
         descendingComparator(a, b, orderBy)
-    : (
-        a: { [key in Key]: number | string },
-        b: { [key in Key]: number | string }
-      ) =>
+    : (a: Reservation, b: Reservation) =>
         -descendingComparator(a, b, orderBy);
 }
 

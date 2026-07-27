@@ -141,7 +141,19 @@ export default function OrderConfirmationPage() {
               {order.items.map(item => (
                 <OrderItemCard
                   key={item.id}
-                  item={item}
+                  item={{
+                    id: item.id,
+                    price_at_order: item.menuItem.price,
+                    menu_item: {
+                      id: item.menuItem.id,
+                      name: item.menuItem.name,
+                      image_url: item.menuItem.imageUrl
+                    },
+                    quantity: item.quantity,
+                    custom_instructions: item.customInstructions,
+                    allergy_info: item.allergyInfo,
+                    status: item.status
+                  }}
                   showInstructions={true}
                   showStatus={false}
                 />

@@ -176,7 +176,7 @@ export default function OrderTrackingPage() {
 
               <Button
                 size="lg"
-                onClick={fetchActiveOrders}
+                onClick={() => fetchActiveOrders()}
                 className="gap-2 rounded-xl bg-white text-orange-600 shadow-lg hover:bg-orange-50"
               >
                 <RefreshCcw className="h-4 w-4" />

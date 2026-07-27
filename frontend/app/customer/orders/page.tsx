@@ -394,7 +394,7 @@ export default function CustomerOrders() {
                       <span>Payment Status</span>
 
                       <Badge
-                        variant="outline"
+                        variant="info"
                         className="capitalize"
                       >
                         {order.payment_status}

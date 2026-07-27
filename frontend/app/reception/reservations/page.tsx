@@ -228,7 +228,7 @@ function ReceptionReservationsContent() {
           size: 220,
           Cell: ({ row }) => (
             <Stack spacing={0.5}>
-              <Typography fontWeight={600}>
+              <Typography sx={{ fontWeight: 600 }}>
                 {row.original.customer?.name || 'N/A'}
               </Typography>
 
@@ -264,7 +264,7 @@ function ReceptionReservationsContent() {
           size: 120,
           Cell: ({ row }) => (
             <Stack spacing={0.25}>
-              <Typography fontWeight={600}>
+              <Typography sx={{ fontWeight: 600 }}>
                 Table {row.original.table?.table_number || 'N/A'}
               </Typography>
 
@@ -292,7 +292,7 @@ function ReceptionReservationsContent() {
           filterVariant: 'date',
           Cell: ({ row }) => (
             <Stack spacing={0.25}>
-              <Typography fontWeight={500}>
+              <Typography sx={{ fontWeight: 500 }}>
                 {formatDate(row.original.date)}
               </Typography>
 
@@ -565,7 +565,7 @@ const table = useMaterialReactTable({
           p: 2,
         })}
       >
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <MRT_GlobalFilterTextField table={table} />
           <MRT_ToggleFiltersButton table={table} />
 

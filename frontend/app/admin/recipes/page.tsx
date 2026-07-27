@@ -433,7 +433,7 @@ export default function RecipesPage() {
 
               <Select
                 value={categoryFilter}
-                onValueChange={setCategoryFilter}
+                onValueChange={(value) => setCategoryFilter(value || '')}
               >
 
                 <SelectTrigger>
@@ -493,7 +493,7 @@ export default function RecipesPage() {
 
                           <div className="flex items-center gap-2 mt-2">
 
-                            <Badge variant="secondary">
+                            <Badge variant="gray">
                               {item.category.replace('_', ' ')}
                             </Badge>
 
@@ -508,8 +508,8 @@ export default function RecipesPage() {
                         <Badge
                           variant={
                             item.isAvailable
-                              ? 'default'
-                              : 'destructive'
+                              ? 'success'
+                              : 'danger'
                           }
                         >
                           {item.isAvailable
@@ -646,7 +646,7 @@ export default function RecipesPage() {
               Ingredients
             </h2>
 
-            <Badge variant="secondary">
+            <Badge variant="gray">
               {recipe?.items?.length ?? 0} Ingredients
             </Badge>
 
@@ -680,7 +680,7 @@ export default function RecipesPage() {
                         </p>
 
                         <Badge
-                          variant="outline"
+                          variant="info"
                           className="mt-2"
                         >
                           {item.inventoryItem.availableStock}{" "}
@@ -744,7 +744,7 @@ export default function RecipesPage() {
 
                       </div>
 
-                      <Badge variant="secondary">
+                      <Badge variant="gray">
                         {item.inventoryItem.unit}
                       </Badge>
 
@@ -834,7 +834,7 @@ export default function RecipesPage() {
         onValueChange={(value) =>
           setNewIngredient({
             ...newIngredient,
-            inventoryItemId: value,
+            inventoryItemId: value || '',
           })
         }
       >

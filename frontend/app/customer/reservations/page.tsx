@@ -154,6 +154,7 @@ export default function CustomerReservations() {
         time: '',
         party_size: 2,
         special_requests: '',
+        table_id: '',
       });
 
       fetchReservations();

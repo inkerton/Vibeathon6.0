@@ -506,7 +506,7 @@ const visibleRows = [...filteredStaff]
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={member.isActive ? 'success' : 'secondary'}>
+                      <Badge variant={member.isActive ? 'success' : 'gray'}>
                         {member.isActive ? 'Active' : 'Inactive'}
                       </Badge>
                     </TableCell>

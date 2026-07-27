@@ -195,7 +195,7 @@ export default function InventoryManagement() {
       size: 100,
       Cell: ({ cell }) => (
         <Badge
-          variant="secondary"
+          variant="warning"
           className="bg-orange-100 text-orange-700"
         >
           {cell.getValue<number>()}
@@ -367,6 +367,7 @@ const stats = useMemo(() => ({
   low: inventory.filter(item => item.availableQuantity <= item.reorderLevel && item.availableQuantity > 0).length,
   out: inventory.filter(item => item.availableQuantity === 0).length,
   inStock: inventory.filter(item => item.availableQuantity > item.reorderLevel).length,
+  reserved: inventory.reduce((sum, item) => sum + item.reservedQuantity, 0),
 }), [inventory]);
 
 const table = useMaterialReactTable({
@@ -542,7 +543,7 @@ const table = useMaterialReactTable({
       </div>
     </Box>
   ),
-}, [columns, filteredInventory, loading, error, filter, inventory.length, stats.low, stats.out, fetchInventory]);
+});
 
   const handleRestock = async (e: React.FormEvent) => {
     e.preventDefault();
