@@ -6,8 +6,9 @@ export class AnalyticsController {
   async generateInsights(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { type } = req.body;
-      const insights = await analyticsService.generateInsights(type);
-      res.json(insights);
+      const result = await analyticsService.generateInsights(type);
+      // generateInsights already returns { insights: [...] }
+      res.json(result);
     } catch (error) {
       next(error);
     }
@@ -17,7 +18,7 @@ export class AnalyticsController {
     try {
       const { type } = req.params;
       const insights = await analyticsService.getInsights(type);
-      res.json(insights);
+      res.json({ insights });
     } catch (error) {
       next(error);
     }

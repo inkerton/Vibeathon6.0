@@ -9,7 +9,7 @@ export class ForecastController {
       const forecast = await forecastService.getDemandForecast(
         daysAhead ? parseInt(daysAhead as string) : 7
       );
-      res.json(forecast);
+      res.json({ data: forecast });
     } catch (error) {
       next(error);
     }
@@ -17,11 +17,13 @@ export class ForecastController {
 
   async getStaffingRecommendations(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      
       const { date } = req.query;
+      console.log({date});
       const recommendations = await forecastService.getStaffingRecommendations(
         date ? new Date(date as string) : new Date()
       );
-      res.json(recommendations);
+      res.json({ data: { recommendations } });
     } catch (error) {
       next(error);
     }
@@ -33,7 +35,7 @@ export class ForecastController {
       const forecasts = await forecastService.getRecentForecasts(
         limit ? parseInt(limit as string) : 10
       );
-      res.json(forecasts);
+      res.json({ data: { forecasts } });
     } catch (error) {
       next(error);
     }
@@ -49,7 +51,7 @@ export class ForecastController {
         daysAhead ? parseInt(daysAhead as string) : 7
       );
       
-      res.json(forecast);
+      res.json({ data: forecast });
     } catch (error) {
       next(error);
     }

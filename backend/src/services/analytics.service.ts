@@ -61,12 +61,22 @@ Focus on:
       
       const analysis = JSON.parse(jsonStr);
 
-      // Save insights
+      // Save insights with normalized types
       await Promise.all(
         analysis.insights.map(async (insight: any) => {
+          // Normalize type to match frontend expectations
+          let normalizedType = insight.type.toUpperCase();
+          if (normalizedType === 'STAFF' || normalizedType === 'OPERATIONS') {
+            normalizedType = 'OPERATIONAL';
+          } else if (normalizedType === 'TREND' || normalizedType === 'PERFORMANCE') {
+            normalizedType = 'OPERATIONAL';
+          } else if (normalizedType === 'EFFICIENCY') {
+            normalizedType = 'OPERATIONAL';
+          }
+          
           return prisma.aIInsight.create({
             data: {
-              type: insight.type,
+              type: normalizedType,
               title: insight.title,
               description: insight.description,
               data: insight,
@@ -267,10 +277,13 @@ Focus on:
     return { insights };
   }
 
-  async getInsightsByType(type: string) {
+  async getInsights(type: string) {
     const insights = await prisma.aIInsight.findMany({
       where: {
-        type,
+        type: {
+          contains: type,
+          mode: 'insensitive'
+        },
         expires_at: {
           gte: new Date()
         }
@@ -282,6 +295,10 @@ Focus on:
     });
 
     return insights;
+  }
+
+  async getInsightsByType(type: string) {
+    return this.getInsights(type);
   }
 
   async getAllInsights() {

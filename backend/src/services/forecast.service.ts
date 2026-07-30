@@ -4,6 +4,10 @@ import aiService from './ai.service';
 const prisma = new PrismaClient();
 
 class ForecastService {
+  async getDemandForecast(daysAhead: number = 7) {
+    return this.forecastDemand(daysAhead);
+  }
+
   async forecastDemand(daysAhead: number = 7) {
     // Get historical order data
     const orders = await prisma.order.findMany({
@@ -21,7 +25,7 @@ class ForecastService {
     });
 
     if (orders.length === 0) {
-      return this.getDefaultForecast(daysAhead);
+      return await this.getDefaultForecast(daysAhead);
     }
 
     // Aggregate data
@@ -29,6 +33,12 @@ class ForecastService {
     const hourlyPatterns = this.analyzeHourlyPatterns(orders);
     const itemPopularity = this.analyzeItemPopularity(orders);
 
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(today);
+    endDate.setDate(endDate.getDate() + daysAhead - 1);
+    
     const prompt = `
 You are a demand forecasting system for a restaurant. Analyze the following data and predict future demand.
 
@@ -37,11 +47,14 @@ Daily Orders: ${JSON.stringify(dailyOrders)}
 Hourly Patterns: ${JSON.stringify(hourlyPatterns)}
 Popular Items: ${JSON.stringify(itemPopularity)}
 
-Predict for the next ${daysAhead} days:
+IMPORTANT: Generate forecasts for ${daysAhead} days starting from TODAY (${startDate.toISOString().split('T')[0]}) through ${endDate.toISOString().split('T')[0]}.
+The first forecast MUST be for today's date: ${startDate.toISOString().split('T')[0]}
+
+For each day predict:
 1. Expected number of orders per day
-2. Peak hours
+2. Peak hours (as array of hour numbers 0-23)
 3. Popular items demand
-4. Confidence level
+4. Confidence level (0.0 to 1.0)
 
 Consider:
 - Day of week patterns
@@ -49,11 +62,11 @@ Consider:
 - Trends
 - Seasonal factors
 
-Provide response in JSON format:
+Provide response in JSON format with dates in YYYY-MM-DD format:
 {
   "forecasts": [
     {
-      "date": "2026-07-31",
+      "date": "${startDate.toISOString().split('T')[0]}",
       "predictedOrders": 150,
       "peakHours": [12, 13, 19, 20],
       "confidence": 0.85
@@ -87,25 +100,71 @@ Provide response in JSON format:
       
       const forecast = JSON.parse(jsonStr);
 
-      // Save forecasts
-      await Promise.all(
-        forecast.forecasts.map(async (f: any) => {
-          return prisma.demandForecast.create({
-            data: {
-              forecast_date: new Date(f.date),
-              predicted_orders: f.predictedOrders,
-              confidence: f.confidence,
-              peak_hours: f.peakHours
-            }
-          });
-        })
-      );
+      // Save forecasts (upsert to avoid duplicates)
+      console.log('Saving AI-generated forecasts to database...');
+      for (const f of forecast.forecasts) {
+        const forecastDate = new Date(f.date);
+        forecastDate.setHours(0, 0, 0, 0);
+        
+        // Delete existing forecasts for this date (no menu_item_id)
+        await prisma.demandForecast.deleteMany({
+          where: {
+            forecast_date: {
+              gte: forecastDate,
+              lt: new Date(forecastDate.getTime() + 24 * 60 * 60 * 1000)
+            },
+            menu_item_id: null
+          }
+        });
+        
+        // Create new forecast
+        await prisma.demandForecast.create({
+          data: {
+            forecast_date: forecastDate,
+            predicted_orders: f.predictedOrders,
+            confidence: f.confidence,
+            peak_hours: f.peakHours
+          }
+        });
+      }
+      console.log('AI-generated forecasts saved successfully');
 
       return forecast;
     } catch (error) {
       console.error('Error generating AI forecast:', error);
       // Fallback to rule-based forecast
-      return this.getRuleBasedForecast(dailyOrders, hourlyPatterns, itemPopularity, daysAhead);
+      const ruleBasedForecast = this.getRuleBasedForecast(dailyOrders, hourlyPatterns, itemPopularity, daysAhead);
+      
+      // Save rule-based forecasts to database (upsert to avoid duplicates)
+      console.log('Saving rule-based forecasts to database...');
+      for (const f of ruleBasedForecast.forecasts) {
+        const forecastDate = new Date(f.date);
+        forecastDate.setHours(0, 0, 0, 0);
+        
+        // Delete existing forecasts for this date (no menu_item_id)
+        await prisma.demandForecast.deleteMany({
+          where: {
+            forecast_date: {
+              gte: forecastDate,
+              lt: new Date(forecastDate.getTime() + 24 * 60 * 60 * 1000)
+            },
+            menu_item_id: null
+          }
+        });
+        
+        // Create new forecast
+        await prisma.demandForecast.create({
+          data: {
+            forecast_date: forecastDate,
+            predicted_orders: f.predictedOrders,
+            confidence: f.confidence,
+            peak_hours: f.peakHours
+          }
+        });
+      }
+      console.log('Rule-based forecasts saved successfully');
+      
+      return ruleBasedForecast;
     }
   }
 
@@ -159,11 +218,12 @@ Provide response in JSON format:
       .map(([id, data]) => ({ itemId: id, ...data }));
   }
 
-  private getDefaultForecast(daysAhead: number) {
+  private async getDefaultForecast(daysAhead: number) {
     const forecasts = [];
     const baseOrders = 50;
     
-    for (let i = 1; i <= daysAhead; i++) {
+    // Start from today (i=0) instead of tomorrow
+    for (let i = 0; i < daysAhead; i++) {
       const date = new Date();
       date.setDate(date.getDate() + i);
       const dayOfWeek = date.getDay();
@@ -171,11 +231,40 @@ Provide response in JSON format:
       
       forecasts.push({
         date: date.toISOString().split('T')[0],
-        predictedOrders: isWeekend ? baseOrders * 1.3 : baseOrders,
+        predictedOrders: Math.round(isWeekend ? baseOrders * 1.3 : baseOrders),
         peakHours: [12, 13, 19, 20],
         confidence: 0.5
       });
     }
+
+    // Save default forecasts to database (upsert to avoid duplicates)
+    console.log('Saving default forecasts to database...');
+    for (const f of forecasts) {
+      const forecastDate = new Date(f.date);
+      forecastDate.setHours(0, 0, 0, 0);
+      
+      // Delete existing forecasts for this date (no menu_item_id)
+      await prisma.demandForecast.deleteMany({
+        where: {
+          forecast_date: {
+            gte: forecastDate,
+            lt: new Date(forecastDate.getTime() + 24 * 60 * 60 * 1000)
+          },
+          menu_item_id: null
+        }
+      });
+      
+      // Create new forecast
+      await prisma.demandForecast.create({
+        data: {
+          forecast_date: forecastDate,
+          predicted_orders: f.predictedOrders,
+          confidence: f.confidence,
+          peak_hours: f.peakHours
+        }
+      });
+    }
+    console.log('Default forecasts saved successfully');
 
     return {
       forecasts,
@@ -197,9 +286,9 @@ Provide response in JSON format:
     // Identify peak hours
     const peakHours = hourlyPatterns.slice(0, 4).map(p => p.hour);
 
-    // Generate forecasts
+    // Generate forecasts (including today, i=0)
     const forecasts = [];
-    for (let i = 1; i <= daysAhead; i++) {
+    for (let i = 0; i < daysAhead; i++) {
       const date = new Date();
       date.setDate(date.getDate() + i);
       const dayOfWeek = date.getDay();
@@ -233,25 +322,44 @@ Provide response in JSON format:
   }
 
   async getStaffingRecommendations(date: Date) {
+    console.log('a');
+    
+    // Create date string in YYYY-MM-DD format for consistent comparison
+    const dateStr = date.toISOString().split('T')[0];
+    console.log('Looking for forecast with date:', dateStr);
+    
+    // Query using date string comparison
     const forecast = await prisma.demandForecast.findFirst({
       where: {
         forecast_date: {
-          gte: new Date(date.setHours(0, 0, 0, 0)),
-          lt: new Date(date.setHours(23, 59, 59, 999))
-        }
+          gte: new Date(dateStr + 'T00:00:00.000Z'),
+          lt: new Date(dateStr + 'T23:59:59.999Z')
+        },
+        menu_item_id: null
       }
+    });
+    console.log('b', { 
+      forecast: forecast ? 'found' : 'not found',
+      searchDate: dateStr,
+      foundDate: forecast ? forecast.forecast_date.toISOString() : 'N/A'
     });
 
     if (!forecast) {
       // Generate forecast for this date
+      console.log('ca - generating forecast');
       await this.forecastDemand(7);
-      return this.getStaffingRecommendations(date);
+      
+      // Create a fresh date object for recursive call
+      const freshDate = new Date(date);
+      return this.getStaffingRecommendations(freshDate);
     }
+    console.log('c');
 
     // Calculate staffing needs based on predicted orders
     const baseStaff = 3;
     const ordersPerStaff = 20;
     const recommendedStaff = Math.ceil(forecast.predicted_orders / ordersPerStaff) + baseStaff;
+    console.log('d');
 
     // Break down by role
     const staffBreakdown = {
@@ -259,6 +367,7 @@ Provide response in JSON format:
       reception: Math.ceil(recommendedStaff * 0.3),
       inventory: Math.ceil(recommendedStaff * 0.3)
     };
+    console.log('e');
 
     return {
       date: forecast.forecast_date,
