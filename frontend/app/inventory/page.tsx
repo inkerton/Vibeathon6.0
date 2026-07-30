@@ -629,12 +629,12 @@ return (
       isVisible={toast.show}
       onClose={() => setToast((prev) => ({ ...prev, show: false }))}
     />
-    <div className="mx-auto max-w-7xl space-y-8 px-6 py-8">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
 
       {/* Hero */}
 
       <Card className="overflow-hidden border-0 bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 text-white shadow-xl">
-        <CardContent className="flex flex-col gap-6 p-8 lg:flex-row lg:items-center lg:justify-between">
+        <CardContent className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
 
           <div>
             <div className="mb-4 flex items-center gap-3">
@@ -644,11 +644,11 @@ return (
               </div>
 
               <div>
-                <h1 className="text-4xl font-bold">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">
                   Inventory Management
                 </h1>
 
-                <p className="mt-1 text-emerald-100">
+                <p className="mt-2 text-sm sm:text-base text-emerald-100">
                   Monitor inventory, replenish stock and manage warehouse inventory.
                 </p>
               </div>

@@ -85,7 +85,7 @@ export default function Checkout() {
     try {
       setLoading(true);
 
-      await apiClient.post('/orders', {
+      const orderRes = await apiClient.post('/orders', {
         table_number: tableNum,
 
         items: cart.map((item: any) => ({
@@ -101,6 +101,16 @@ export default function Checkout() {
       });
 
       localStorage.removeItem('cart');
+
+      // Track preferences from this order for better AI recommendations
+      try {
+        const orderId = orderRes.data?.data?.id ?? orderRes.data?.id;
+        if (orderId) {
+          await apiClient.post('/ai/preferences/track', { orderId });
+        }
+      } catch {
+        // Non-critical — don't block success flow
+      }
 
       setToast({
         show: true,

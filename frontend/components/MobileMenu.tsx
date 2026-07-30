@@ -15,6 +15,7 @@ interface MobileMenuProps {
 
 export function MobileMenu({ navigationItems, onLogout, userName, userEmail, userRole }: MobileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
   const pathname = usePathname();
 
   // Close menu when route changes
@@ -24,24 +25,29 @@ export function MobileMenu({ navigationItems, onLogout, userName, userEmail, use
 
   // Prevent body scroll when menu is open
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
+    document.body.style.overflow = isOpen ? 'hidden' : 'unset';
+    return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen]);
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+  // Auto-expand any group that contains the active route
+  useEffect(() => {
+    const active = navigationItems
+      .filter((i) => i.group && (pathname === i.href || pathname.startsWith(i.href + '/')))
+      .map((i) => i.group!);
+    if (active.length) setOpenGroups(new Set(active));
+  }, [pathname, navigationItems]);
+
+  const toggleGroup = (group: string) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      return next;
+    });
   };
+
+  const getInitials = (name: string) =>
+    name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 
   const getRoleBadgeColor = (role: string) => {
     const colors: Record<string, string> = {
@@ -53,6 +59,20 @@ export function MobileMenu({ navigationItems, onLogout, userName, userEmail, use
     };
     return colors[role] || 'bg-gray-100 text-gray-800';
   };
+
+  // Split into ungrouped and grouped
+  const ungrouped = navigationItems.filter((i) => !i.group);
+  const groupMap = new Map<string, NavItem[]>();
+  navigationItems
+    .filter((i) => i.group)
+    .forEach((i) => {
+      const key = i.group!;
+      if (!groupMap.has(key)) groupMap.set(key, []);
+      groupMap.get(key)!.push(i);
+    });
+
+  const sparklesPath =
+    'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.476A2 2 0 0115 20H9a2 2 0 01-1.414-.586l-.547-.476z';
 
   return (
     <>
@@ -117,18 +137,18 @@ export function MobileMenu({ navigationItems, onLogout, userName, userEmail, use
             </div>
 
             {/* Navigation Links */}
-            <nav className="px-4 py-4">
+            <nav className="px-4 py-4 pb-24">
               <div className="space-y-1">
-                {navigationItems.map((item) => {
+
+                {/* Ungrouped items */}
+                {ungrouped.map((item) => {
                   const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
                       className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                        isActive
-                          ? 'bg-blue-50 text-blue-700 font-medium'
-                          : 'text-gray-700 hover:bg-gray-50'
+                        isActive ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
                       }`}
                     >
                       <svg
@@ -145,12 +165,94 @@ export function MobileMenu({ navigationItems, onLogout, userName, userEmail, use
                           <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
                         )}
                       </div>
-                      {isActive && (
-                        <div className="w-2 h-2 rounded-full bg-blue-600" />
-                      )}
+                      {isActive && <div className="w-2 h-2 rounded-full bg-blue-600" />}
                     </Link>
                   );
                 })}
+
+                {/* Grouped sections */}
+                {Array.from(groupMap.entries()).map(([groupName, items]) => {
+                  const isGroupActive = items.some(
+                    (i) => pathname === i.href || pathname.startsWith(i.href + '/')
+                  );
+                  const isExpanded = openGroups.has(groupName);
+
+                  return (
+                    <div key={groupName} className="mt-1">
+                      {/* Group header button */}
+                      <button
+                        onClick={() => toggleGroup(groupName)}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                          isGroupActive
+                            ? 'bg-blue-50 text-blue-700 font-medium'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <svg
+                          className={`w-5 h-5 flex-shrink-0 ${isGroupActive ? 'text-blue-600' : 'text-gray-400'}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sparklesPath} />
+                        </svg>
+                        <div className="flex-1 text-left">
+                          <p className="text-sm font-medium">{groupName}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {items.length} AI features
+                          </p>
+                        </div>
+                        {/* Chevron */}
+                        <svg
+                          className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''} ${isGroupActive ? 'text-blue-600' : 'text-gray-400'}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
+                      {/* Collapsible sub-items */}
+                      {isExpanded && (
+                        <div className="mt-1 ml-4 pl-3 border-l-2 border-blue-100 space-y-1">
+                          {items.map((item) => {
+                            const isActive =
+                              pathname === item.href || pathname.startsWith(item.href + '/');
+                            return (
+                              <Link
+                                key={item.href}
+                                href={item.href}
+                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                                  isActive
+                                    ? 'bg-blue-50 text-blue-700 font-medium'
+                                    : 'text-gray-700 hover:bg-gray-50'
+                                }`}
+                              >
+                                <svg
+                                  className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400'}`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                                </svg>
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium">{item.label}</p>
+                                  {item.description && (
+                                    <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
+                                  )}
+                                </div>
+                                {isActive && <div className="w-2 h-2 rounded-full bg-blue-600" />}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
               </div>
             </nav>
 
