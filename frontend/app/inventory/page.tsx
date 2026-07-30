@@ -72,6 +72,7 @@ import { Separator } from '@/components/ui/separator';
 
 import { apiClient } from '@/lib/api-client';
 import { Toast } from '@/components/Toast';
+import { InventoryPredictions } from '@/components/InventoryPredictions';
 
 interface InventoryItem {
   id: string;
@@ -691,6 +692,11 @@ return (
           </CardContent>
         </Card>
       )}
+
+      {/* AI-Powered Inventory Predictions */}
+      <div className="space-y-6">
+        <InventoryPredictions />
+      </div>
 
       {/* Statistics */}
 

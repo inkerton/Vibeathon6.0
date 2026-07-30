@@ -101,6 +101,8 @@ model User {
   transactions      InventoryTransaction[] @relation("PerformedBy")
   notifications     Notification[]
   waitlist_entries  WaitlistEntry[]
+  preferences       UserPreference?
+  recommendations   AIRecommendation[]
 }
 
 model Table {
@@ -128,18 +130,20 @@ model Reservation {
 }
 
 model MenuItem {
-  id               String       @id @default(cuid())
-  name             String       @unique
+  id               String             @id @default(cuid())
+  name             String             @unique
   description      String
-  price            Decimal      @db.Decimal(10, 2)
+  price            Decimal            @db.Decimal(10, 2)
   category         String
   image_url        String?
-  is_available     Boolean      @default(true)
-  preparation_time Int          @default(15)
-  created_at       DateTime     @default(now())
-  updated_at       DateTime     @updatedAt
+  is_available     Boolean            @default(true)
+  preparation_time Int                @default(15)
+  created_at       DateTime           @default(now())
+  updated_at       DateTime           @updatedAt
   recipe           RecipeItem[]
   order_items      OrderItem[]
+  recommendations  AIRecommendation[]
+  forecasts        DemandForecast[]
 }
 
 model RecipeItem {
@@ -197,6 +201,7 @@ model InventoryItem {
   updated_at        DateTime               @updatedAt
   recipe_items      RecipeItem[]
   transactions      InventoryTransaction[]
+  predictions       InventoryPrediction[]
 }
 
 model InventoryTransaction {
@@ -245,4 +250,75 @@ model WaitlistEntry {
   status      String    @default("waiting") // waiting, seated, cancelled
   created_at  DateTime  @default(now())
   seated_at   DateTime?
+}
+
+// AI/ML Models for Platinum Tier Features
+
+model UserPreference {
+  id                    String   @id @default(cuid())
+  user                  User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id               String   @unique
+  preferred_categories  String[]
+  dietary_restrictions  String[]
+  favorite_items        String[]
+  price_range           Json?
+  last_updated          DateTime @default(now()) @updatedAt
+  
+  @@index([user_id])
+}
+
+model AIRecommendation {
+  id           String   @id @default(cuid())
+  user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id      String
+  menu_item    MenuItem @relation(fields: [menu_item_id], references: [id], onDelete: Cascade)
+  menu_item_id String
+  score        Float
+  reason       String
+  created_at   DateTime @default(now())
+  
+  @@index([user_id, score])
+  @@index([created_at])
+}
+
+model InventoryPrediction {
+  id                  String        @id @default(cuid())
+  item                InventoryItem @relation(fields: [item_id], references: [id], onDelete: Cascade)
+  item_id             String
+  predicted_usage     Float
+  recommended_restock Float
+  confidence          Float
+  prediction_date     DateTime
+  created_at          DateTime      @default(now())
+  
+  @@index([item_id, prediction_date])
+}
+
+model DemandForecast {
+  id               String    @id @default(cuid())
+  menu_item        MenuItem? @relation(fields: [menu_item_id], references: [id], onDelete: Cascade)
+  menu_item_id     String?
+  forecast_date    DateTime
+  predicted_orders Int
+  confidence       Float
+  peak_hours       Json?
+  created_at       DateTime  @default(now())
+  
+  @@index([forecast_date])
+  @@index([menu_item_id])
+}
+
+model AIInsight {
+  id          String    @id @default(cuid())
+  type        String    // 'revenue', 'performance', 'efficiency', 'trend'
+  title       String
+  description String
+  data        Json
+  priority    String    // 'high', 'medium', 'low'
+  actionable  Boolean   @default(false)
+  created_at  DateTime  @default(now())
+  expires_at  DateTime?
+  
+  @@index([type, created_at])
+  @@index([priority])
 }

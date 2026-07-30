@@ -184,6 +184,26 @@ export class AuthController {
     }
   }
 
+
+  async refreshToken(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { refreshToken } = req.body;
+      
+      if (!refreshToken) {
+        throw new AppError('Refresh token is required', 400);
+      }
+
+      const result = await authService.refreshToken(refreshToken);
+      
+      res.status(200).json({
+        status: 'success',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // Google OAuth callback handler
   async googleAuthCallback(req: AuthRequest, res: Response, next: NextFunction) {
     try {

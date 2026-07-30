@@ -38,7 +38,8 @@ export class AuthService {
 
     // Hash password
     console.log('[AUTH_SERVICE] Hashing password...');
-    const password_hash = await bcrypt.hash(data.password, 10);
+    const saltRounds = process.env.NODE_ENV === 'test' ? 1 : 10;
+    const password_hash = await bcrypt.hash(data.password, saltRounds);
     console.log('[AUTH_SERVICE] Password hashed successfully');
 
     
@@ -322,5 +323,38 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  async refreshToken(refreshToken: string) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET) as TokenPayload;
+      
+      // Verify user still exists and is active
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id },
+      });
+
+      if (!user || !user.is_active) {
+        throw new AppError('Invalid refresh token', 401);
+      }
+
+      // Generate new tokens
+      const tokenPayload: TokenPayload = {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      };
+
+      const accessToken = generateAccessToken(tokenPayload);
+      const newRefreshToken = generateRefreshToken(tokenPayload);
+
+      return {
+        accessToken,
+        refreshToken: newRefreshToken,
+      };
+    } catch (error) {
+      throw new AppError('Invalid refresh token', 401);
+    }
   }
 }

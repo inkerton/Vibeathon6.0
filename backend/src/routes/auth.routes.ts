@@ -34,5 +34,6 @@ router.get(
 // Protected routes
 router.get('/me', authMiddleware, authHandler(authController.getCurrentUser.bind(authController)));
 router.post('/logout', authMiddleware, authHandler(authController.logout.bind(authController)));
+router.post('/refresh', authHandler(authController.refreshToken.bind(authController)));
 
 export default router;

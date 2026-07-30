@@ -114,9 +114,28 @@ export function PerformanceMetrics() {
     );
   }
 
-  const o = data.orderMetrics;
-  const c = data.customerMetrics;
-  const e = data.efficiencyMetrics;
+  const o = data?.orderMetrics;
+  const c = data?.customerMetrics;
+  const e = data?.efficiencyMetrics;
+
+  // Safety check - if any metrics are missing, show no data message
+  if (!o || !c || !e) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100">
+            <Activity className="h-5 w-5 text-blue-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900">Performance Metrics</h2>
+        </div>
+        <Card className="rounded-2xl border border-slate-200 p-12 text-center">
+          <Activity className="mx-auto mb-4 h-12 w-12 text-slate-300" />
+          <p className="text-slate-500">No performance data available yet.</p>
+          <p className="text-sm text-slate-400 mt-1">Requires at least 30 days of order history.</p>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
