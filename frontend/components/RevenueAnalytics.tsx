@@ -111,6 +111,25 @@ export function RevenueAnalytics() {
 
   const trendBadge = data.trend === 'INCREASING' ? 'success' : data.trend === 'DECREASING' ? 'danger' : 'info';
 
+  // Safety check for breakdown data
+  if (!data.breakdown || !data.breakdown.byCategory || !data.breakdown.byDayOfWeek || !data.breakdown.byHour) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100">
+            <DollarSign className="h-5 w-5 text-blue-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900">Revenue Analytics</h2>
+        </div>
+        <Card className="rounded-2xl border border-slate-200 p-12 text-center">
+          <DollarSign className="mx-auto mb-4 h-12 w-12 text-slate-300" />
+          <p className="text-slate-500">No revenue data available yet.</p>
+          <p className="text-sm text-slate-400 mt-1">Analytics are generated from completed order history.</p>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}

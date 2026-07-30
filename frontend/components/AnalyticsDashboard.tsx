@@ -90,10 +90,19 @@ export function AnalyticsDashboard() {
     else setLoading(true);
 
     try {
-      const response = await apiClient.get('/ai/insights/all');
-      const d = response.data?.data ?? response.data;
-      const list: AIInsight[] = d?.insights ?? (Array.isArray(d) ? d : []);
-      setInsights(list);
+      // Fetch insights for all types
+      const types = ['REVENUE', 'OPERATIONAL', 'CUSTOMER', 'INVENTORY'];
+      const responses = await Promise.all(
+        types.map(type => apiClient.get(`/ai/insights/${type}`).catch(() => ({ data: { insights: [] } })))
+      );
+      
+      // Combine all insights
+      const allInsights = responses.flatMap(response => {
+        const d = response.data?.data ?? response.data;
+        return d?.insights ?? (Array.isArray(d) ? d : []);
+      });
+      
+      setInsights(allInsights);
     } catch (err) {
       console.error('Failed to load insights:', err);
     } finally {

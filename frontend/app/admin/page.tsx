@@ -20,6 +20,10 @@ import { Button } from "@/components/Button";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { Badge } from "@/components/Badge";
+import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
+import { DemandForecast } from "@/components/DemandForecast";
+import { PerformanceMetrics } from "@/components/PerformanceMetrics";
+import { RevenueAnalytics } from "@/components/RevenueAnalytics";
 
 interface DashboardStats {
   totalOrders: number;
@@ -584,6 +588,26 @@ export default function AdminDashboard() {
             )}
           </div>
         </Card>
+      </div>
+
+      {/* AI-Powered Insights */}
+      <div className="space-y-6">
+        <AnalyticsDashboard />
+      </div>
+
+      {/* Demand Forecast */}
+      <div className="space-y-6">
+        <DemandForecast />
+      </div>
+
+      {/* Performance Metrics */}
+      <div className="space-y-6">
+        <PerformanceMetrics />
+      </div>
+
+      {/* Revenue Analytics */}
+      <div className="space-y-6">
+        <RevenueAnalytics />
       </div>
 
       {/* Desktop Quick Actions */}
