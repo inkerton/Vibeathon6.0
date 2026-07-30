@@ -10,7 +10,12 @@ interface Message {
   timestamp: Date;
 }
 
-const QUICK_PROMPTS = [
+interface SuggestionCategory {
+  category: string;
+  questions: string[];
+}
+
+const FALLBACK_PROMPTS = [
   "What's on the menu today?",
   'Where is my order?',
   'What do you recommend?',
@@ -22,13 +27,36 @@ export function AIChatbot() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [quickPrompts, setQuickPrompts] = useState<string[]>(FALLBACK_PROMPTS);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch dynamic suggestions from API on first open
   useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+    if (!isOpen) return;
+    setTimeout(() => inputRef.current?.focus(), 100);
+
+    if (quickPrompts === FALLBACK_PROMPTS) {
+      apiClient
+        .get('/ai/chat/suggestions')
+        .then((res: any) => {
+          const data = res.data?.data ?? res.data;
+          // Spec: data.roleSpecific.topQuestions or flatten data.suggestions[].questions
+          const top: string[] | undefined = data?.roleSpecific?.topQuestions;
+          if (top && top.length > 0) {
+            setQuickPrompts(top.slice(0, 4));
+          } else if (data?.suggestions && Array.isArray(data.suggestions)) {
+            const flat: string[] = (data.suggestions as SuggestionCategory[])
+              .flatMap((s) => s.questions)
+              .slice(0, 4);
+            if (flat.length > 0) setQuickPrompts(flat);
+          }
+        })
+        .catch(() => {
+          // Silently keep fallback prompts
+        });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   useEffect(() => {
@@ -136,7 +164,7 @@ export function AIChatbot() {
                   How can I help you today?
                 </p>
                 <div className="space-y-2">
-                  {QUICK_PROMPTS.map((prompt) => (
+                  {quickPrompts.map((prompt) => (
                     <button
                       key={prompt}
                       onClick={() => sendMessage(prompt)}

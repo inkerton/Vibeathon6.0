@@ -46,6 +46,15 @@ interface StaffingData {
   confidence: number;
 }
 
+interface RecentForecast {
+  id: string;
+  periodStart: string;
+  periodEnd: string;
+  totalPredictedOrders: number;
+  accuracy: number | null;
+  generatedAt: string;
+}
+
 const HOUR_LABELS = ['12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am',
                      '12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm'];
 
@@ -54,6 +63,7 @@ const BAR_COLORS = ['#3b82f6','#6366f1','#8b5cf6','#a855f7','#ec4899','#f43f5e',
 export function DemandForecast() {
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [staffing, setStaffing] = useState<StaffingData | null>(null);
+  const [recentForecasts, setRecentForecasts] = useState<RecentForecast[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -66,18 +76,53 @@ export function DemandForecast() {
     else setLoading(true);
 
     try {
-      const [forecastRes, staffRes] = await Promise.allSettled([
-        apiClient.get('/ai/predictions/demand'),
-        apiClient.get('/ai/staffing?date=' + new Date().toISOString().split('T')[0]),
+      const [forecastRes, staffRes, recentRes] = await Promise.allSettled([
+        apiClient.get('/ai/forecast/demand'),
+        apiClient.get('/ai/forecast/staffing?date=' + new Date().toISOString().split('T')[0]),
+        apiClient.get('/ai/forecast/recent'),
       ]);
 
       if (forecastRes.status === 'fulfilled') {
-        const d = forecastRes.value.data?.data ?? forecastRes.value.data;
-        setForecast(d ?? null);
+        // Spec: data.forecast.dailyForecasts[], summary, itemForecasts[], insights[]
+        const raw = forecastRes.value.data?.data ?? forecastRes.value.data;
+        if (raw?.forecast) {
+          // Backend follows spec shape
+          const f = raw.forecast;
+          setForecast({
+            forecasts: f.dailyForecasts ?? [],
+            itemForecasts: f.itemForecasts ?? [],
+            insights: f.insights ?? [],
+          });
+        } else if (raw?.forecasts) {
+          // Backend returns flat shape (legacy)
+          setForecast(raw);
+        } else {
+          setForecast(raw ?? null);
+        }
       }
       if (staffRes.status === 'fulfilled') {
-        const d = staffRes.value.data?.data ?? staffRes.value.data;
-        setStaffing(d ?? null);
+        // Spec: data.recommendations.{ date, predictedOrders, totalStaffRecommended, peakHours[], confidence }
+        const raw = staffRes.value.data?.data ?? staffRes.value.data;
+        if (raw?.recommendations) {
+          const r = raw.recommendations;
+          setStaffing({
+            date: r.date,
+            predictedOrders: r.predictedOrders,
+            recommendedStaff: r.totalStaffRecommended ?? r.recommendedStaff,
+            peakHours: Array.isArray(r.peakHours)
+              ? r.peakHours.map((p: any) => (typeof p === 'object' ? p.hour : p))
+              : [],
+            confidence: r.confidence,
+          });
+        } else {
+          // Backend returns flat shape (legacy)
+          setStaffing(raw ?? null);
+        }
+      }
+      if (recentRes.status === 'fulfilled') {
+        const d = recentRes.value.data?.data ?? recentRes.value.data;
+        const list = d?.forecasts ?? (Array.isArray(d) ? d : []);
+        setRecentForecasts(Array.isArray(list) ? list : []);
       }
     } catch (err) {
       console.error('Failed to load demand forecast:', err);
@@ -352,6 +397,40 @@ export function DemandForecast() {
               </li>
             ))}
           </ul>
+        </Card>
+      )}
+
+      {/* Recent Forecasts */}
+      {recentForecasts.length > 0 && (
+        <Card className="rounded-2xl border border-slate-200 p-6">
+          <h3 className="text-lg font-bold text-slate-900 mb-4">Recent Forecast History</h3>
+          <div className="space-y-3">
+            {recentForecasts.map((rf) => (
+              <div key={rf.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 gap-4">
+                <div className="text-sm">
+                  <span className="font-medium text-slate-800">
+                    {new Date(rf.periodStart).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    {' → '}
+                    {new Date(rf.periodEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                  </span>
+                  <span className="ml-2 text-xs text-slate-400">
+                    Generated {new Date(rf.generatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-sm font-bold text-blue-600">{rf.totalPredictedOrders} orders</span>
+                  {rf.accuracy != null && (
+                    <Badge
+                      variant={rf.accuracy >= 0.9 ? 'success' : rf.accuracy >= 0.75 ? 'warning' : 'danger'}
+                      className="text-xs"
+                    >
+                      {(rf.accuracy * 100).toFixed(0)}% accurate
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </Card>
       )}
     </div>

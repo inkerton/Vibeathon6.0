@@ -11,11 +11,39 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { AlertTriangle, TrendingUp, Package, RefreshCw } from 'lucide-react';
+import { AlertTriangle, TrendingUp, Package, RefreshCw, ChevronRight, X, History } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { Card } from '@/components/Card';
 import { Badge } from '@/components/Badge';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+
+/* ─── Spec types for per-item detail ─── */
+interface DetailedPrediction {
+  id: string;
+  inventoryItem: { id: string; name: string; currentQuantity: number; unit: string };
+  dailyPredictions: { date: string; predictedUsage: number; confidence: number }[];
+  totalPredictedUsage: number;
+  restockRecommendation: { shouldRestock: boolean; recommendedQuantity: number; recommendedDate: string };
+}
+
+interface PredictionHistory {
+  id: string;
+  predictedUsage: number;
+  actualUsage: number | null;
+  accuracy: number | null;
+  generatedAt: string;
+  periodStart: string;
+  periodEnd: string;
+}
+
+interface DrilldownState {
+  itemId: string;
+  itemName: string;
+  detail: DetailedPrediction | null;
+  history: PredictionHistory[];
+  loading: boolean;
+  tab: 'detail' | 'history';
+}
 
 interface DailyPrediction {
   date: string;
@@ -35,9 +63,21 @@ interface ItemPrediction {
 
 interface LowStockAlert {
   id: string;
-  predictedUsage: number;
-  recommendedRestock: number;
-  item: {
+  // Spec shape: inventoryItem + daysUntilStockout + predictedDailyUsage + recommendedAction + severity
+  predictedUsage?: number;           // legacy flat shape
+  predictedDailyUsage?: number;      // spec shape
+  recommendedRestock?: number;       // legacy flat shape
+  recommendedAction?: string;        // spec shape
+  severity?: string;
+  daysUntilStockout?: number;
+  estimatedStockoutDate?: string;
+  inventoryItem?: {                  // spec shape
+    id: string;
+    name: string;
+    currentQuantity: number;
+    unit: string;
+  };
+  item?: {                           // legacy flat shape
     id: string;
     name: string;
     total_stock: number;
@@ -52,6 +92,7 @@ export function InventoryPredictions() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<number>(0);
+  const [drilldown, setDrilldown] = useState<DrilldownState | null>(null);
 
   useEffect(() => {
     loadData();
@@ -72,8 +113,10 @@ export function InventoryPredictions() {
         setPredictions(Array.isArray(d) ? d : []);
       }
       if (alertRes.status === 'fulfilled') {
-        const d = alertRes.value.data?.data ?? alertRes.value.data ?? [];
-        setAlerts(Array.isArray(d) ? d : []);
+        const d = alertRes.value.data?.data ?? alertRes.value.data ?? {};
+        // Spec: data.alerts[] — also handle legacy flat array
+        const list = d?.alerts ?? (Array.isArray(d) ? d : []);
+        setAlerts(Array.isArray(list) ? list : []);
       }
     } catch (err) {
       console.error('Failed to load inventory predictions:', err);
@@ -87,6 +130,32 @@ export function InventoryPredictions() {
     if (c >= 0.8) return 'success';
     if (c >= 0.6) return 'warning';
     return 'danger';
+  };
+
+  const openDrilldown = async (itemId: string, itemName: string) => {
+    setDrilldown({ itemId, itemName, detail: null, history: [], loading: true, tab: 'detail' });
+    try {
+      const [detailRes, historyRes] = await Promise.allSettled([
+        apiClient.get(`/ai/predictions/inventory/${itemId}`),
+        apiClient.get(`/ai/predictions/inventory/${itemId}/history`),
+      ]);
+
+      let detail: DetailedPrediction | null = null;
+      let history: PredictionHistory[] = [];
+
+      if (detailRes.status === 'fulfilled') {
+        const d = detailRes.value.data?.data ?? detailRes.value.data;
+        detail = d?.prediction ?? d ?? null;
+      }
+      if (historyRes.status === 'fulfilled') {
+        const d = historyRes.value.data?.data ?? historyRes.value.data;
+        history = d?.history ?? (Array.isArray(d) ? d : []);
+      }
+
+      setDrilldown((prev) => prev ? { ...prev, detail, history, loading: false } : null);
+    } catch {
+      setDrilldown((prev) => prev ? { ...prev, loading: false } : null);
+    }
   };
 
   if (loading) {
@@ -137,31 +206,40 @@ export function InventoryPredictions() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {alerts.map((alert) => {
-              const daysLeft = alert.item.total_stock > 0 && alert.predictedUsage > 0
-                ? (alert.item.total_stock / alert.predictedUsage).toFixed(1)
-                : '?';
-              return (
-                <div
-                  key={alert.id}
-                  className="rounded-xl bg-white border border-red-100 p-4"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-                      <p className="font-semibold text-slate-900 text-sm">{alert.item.name}</p>
+                // Normalise across spec shape (inventoryItem) and legacy shape (item)
+                const itemName = alert.inventoryItem?.name ?? alert.item?.name ?? 'Unknown';
+                const stockQty = alert.inventoryItem?.currentQuantity ?? alert.item?.total_stock ?? 0;
+                const unit = alert.inventoryItem?.unit ?? alert.item?.unit ?? '';
+                const dailyUse = alert.predictedDailyUsage ?? alert.predictedUsage ?? 0;
+                const daysLeft = alert.daysUntilStockout != null
+                  ? alert.daysUntilStockout.toFixed(1)
+                  : stockQty > 0 && dailyUse > 0
+                    ? (stockQty / dailyUse).toFixed(1)
+                    : '?';
+                const restockInfo = alert.recommendedAction ?? (alert.recommendedRestock != null ? `${alert.recommendedRestock} ${unit}` : '—');
+                const severityVariant = alert.severity === 'HIGH' ? 'danger' : alert.severity === 'MEDIUM' ? 'warning' : 'info';
+                return (
+                  <div
+                    key={alert.id}
+                    className="rounded-xl bg-white border border-red-100 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Package className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                        <p className="font-semibold text-slate-900 text-sm">{itemName}</p>
+                      </div>
+                      <Badge variant={severityVariant as any} className="text-xs shrink-0">
+                        ~{daysLeft}d left
+                      </Badge>
                     </div>
-                    <Badge variant="danger" className="text-xs shrink-0">
-                      ~{daysLeft}d left
-                    </Badge>
+                    <div className="mt-2 grid grid-cols-2 gap-1 text-xs text-slate-500">
+                      <span>Stock: <strong className="text-slate-700">{stockQty} {unit}</strong></span>
+                      <span>Daily use: <strong className="text-slate-700">{dailyUse > 0 ? dailyUse.toFixed(1) : '—'}</strong></span>
+                      <span className="col-span-2">Action: <strong className="text-blue-600">{restockInfo}</strong></span>
+                    </div>
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-1 text-xs text-slate-500">
-                    <span>Stock: <strong className="text-slate-700">{alert.item.total_stock} {alert.item.unit}</strong></span>
-                    <span>Daily use: <strong className="text-slate-700">{alert.predictedUsage.toFixed(1)}</strong></span>
-                    <span className="col-span-2">Restock: <strong className="text-blue-600">{alert.recommendedRestock} {alert.item.unit}</strong></span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </Card>
       )}
@@ -175,17 +253,27 @@ export function InventoryPredictions() {
             {predictions.length > 1 && (
               <div className="flex flex-wrap gap-2">
                 {predictions.map((p, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setSelectedItem(idx)}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
-                      selectedItem === idx
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600'
-                    }`}
-                  >
-                    {p.itemName ?? `Item ${idx + 1}`}
-                  </button>
+                  <div key={idx} className="flex items-center gap-1">
+                    <button
+                      onClick={() => setSelectedItem(idx)}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
+                        selectedItem === idx
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600'
+                      }`}
+                    >
+                      {p.itemName ?? `Item ${idx + 1}`}
+                    </button>
+                    {p.itemId && (
+                      <button
+                        onClick={() => openDrilldown(p.itemId!, p.itemName ?? `Item ${idx + 1}`)}
+                        title="View detail & history"
+                        className="rounded-full p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                      >
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
@@ -281,6 +369,119 @@ export function InventoryPredictions() {
           <p className="text-slate-500">No prediction data available yet.</p>
           <p className="text-sm text-slate-400 mt-1">Predictions are generated based on inventory transaction history.</p>
         </Card>
+      )}
+      {/* ─── Per-item Drilldown Modal ─── */}
+      {drilldown && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-16 overflow-y-auto">
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl mb-16">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">{drilldown.itemName}</h3>
+                <p className="text-sm text-slate-500">Item-level prediction detail</p>
+              </div>
+              <button
+                onClick={() => setDrilldown(null)}
+                className="rounded-full p-2 hover:bg-slate-100 transition-colors"
+              >
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-slate-200">
+              {(['detail', 'history'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setDrilldown((prev) => prev ? { ...prev, tab } : null)}
+                  className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors ${
+                    drilldown.tab === tab
+                      ? 'border-b-2 border-blue-600 text-blue-600'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {tab === 'history' && <History className="h-4 w-4" />}
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6">
+              {drilldown.loading ? (
+                <LoadingSpinner size="md" className="py-8" />
+              ) : drilldown.tab === 'detail' ? (
+                drilldown.detail ? (
+                  <>
+                    {/* Restock summary */}
+                    <div className="grid grid-cols-2 gap-4 mb-6 sm:grid-cols-3">
+                      <div className="rounded-xl bg-slate-50 p-4 text-center">
+                        <p className="text-2xl font-bold text-blue-600">{drilldown.detail.inventoryItem.currentQuantity}</p>
+                        <p className="text-xs text-slate-500 mt-1">Current Stock ({drilldown.detail.inventoryItem.unit})</p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-4 text-center">
+                        <p className="text-2xl font-bold text-slate-900">{drilldown.detail.totalPredictedUsage.toFixed(1)}</p>
+                        <p className="text-xs text-slate-500 mt-1">Predicted Usage (period)</p>
+                      </div>
+                      {drilldown.detail.restockRecommendation.shouldRestock && (
+                        <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 text-center col-span-2 sm:col-span-1">
+                          <p className="text-2xl font-bold text-blue-700">{drilldown.detail.restockRecommendation.recommendedQuantity}</p>
+                          <p className="text-xs text-slate-500 mt-1">Restock by {drilldown.detail.restockRecommendation.recommendedDate}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Daily chart */}
+                    {drilldown.detail.dailyPredictions.length > 0 && (
+                      <ResponsiveContainer width="100%" height={220}>
+                        <LineChart data={drilldown.detail.dailyPredictions} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v) => new Date(v).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} />
+                          <YAxis tick={{ fontSize: 11 }} />
+                          <Tooltip
+                            labelFormatter={(l: any) => new Date(String(l)).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                            formatter={(v: any, n: any) => [n === 'predictedUsage' ? `${Number(v).toFixed(1)} units` : `${(Number(v) * 100).toFixed(0)}%`, n === 'predictedUsage' ? 'Predicted' : 'Confidence']}
+                          />
+                          <Legend formatter={(v: any) => (v === 'predictedUsage' ? 'Predicted Usage' : 'Confidence')} />
+                          <Line type="monotone" dataKey="predictedUsage" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3, fill: '#3b82f6' }} />
+                          <Line type="monotone" dataKey="confidence" stroke="#10b981" strokeWidth={1} strokeDasharray="4 4" dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
+                  </>
+                ) : (
+                  <p className="py-8 text-center text-slate-400">No detail data available for this item.</p>
+                )
+              ) : (
+                /* History tab */
+                drilldown.history.length > 0 ? (
+                  <div className="space-y-3">
+                    <p className="text-xs text-slate-500 mb-4">Past predictions vs. actual usage</p>
+                    {drilldown.history.map((h) => (
+                      <div key={h.id} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-sm font-medium text-slate-700">
+                            {h.periodStart} → {h.periodEnd}
+                          </span>
+                          {h.accuracy != null && (
+                            <Badge variant={h.accuracy >= 0.9 ? 'success' : h.accuracy >= 0.75 ? 'warning' : 'danger'} className="text-xs">
+                              {(h.accuracy * 100).toFixed(0)}% accurate
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
+                          <span>Predicted: <strong className="text-slate-800">{h.predictedUsage.toFixed(1)}</strong></span>
+                          <span>Actual: <strong className="text-slate-800">{h.actualUsage != null ? h.actualUsage.toFixed(1) : '—'}</strong></span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-8 text-center text-slate-400">No prediction history available yet.</p>
+                )
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

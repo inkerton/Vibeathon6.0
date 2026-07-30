@@ -47,9 +47,19 @@ export function RecommendationsSection({ onAddToCart }: RecommendationsSectionPr
     setError(null);
 
     try {
+      if (isRefresh) {
+        // Force-regenerate via POST, then fall through to GET
+        try {
+          await apiClient.post('/ai/recommendations/regenerate');
+        } catch {
+          // If regenerate fails (e.g. rate-limited), still fetch cached list below
+        }
+      }
       const response = await apiClient.get('/ai/recommendations');
-      const data = response.data?.data ?? response.data ?? [];
-      setRecommendations(Array.isArray(data) ? data : []);
+      const data = response.data?.data ?? response.data ?? {};
+      // Spec: data.recommendations[] — also handle legacy flat array
+      const list = data?.recommendations ?? (Array.isArray(data) ? data : []);
+      setRecommendations(Array.isArray(list) ? list : []);
     } catch (err: any) {
       console.error('Failed to load recommendations:', err);
       setError('Could not load recommendations right now.');
