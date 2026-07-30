@@ -9,6 +9,7 @@ import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Toast } from '@/components/Toast';
+import { RecommendationsSection } from '@/components/RecommendationsSection';
 import { apiClient } from '@/lib/api-client';
 
 interface MenuItem {
@@ -294,6 +295,11 @@ export default function CustomerMenu() {
               {cat.replaceAll('_', ' ').toUpperCase()}
             </button>
           ))}
+        </div>
+
+        {/* AI Recommendations */}
+        <div className="mt-8">
+          <RecommendationsSection onAddToCart={(item) => addToCart(item as MenuItem)} />
         </div>
 
         <div className="mt-10 grid gap-8 lg:grid-cols-3">

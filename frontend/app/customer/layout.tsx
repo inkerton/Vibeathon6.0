@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { AIChatbot } from '@/components/AIChatbot';
 
 export default function CustomerLayout({
   children,
@@ -43,6 +44,7 @@ export default function CustomerLayout({
       <main className="pt-16">
         {children}
       </main>
+      <AIChatbot />
     </div>
   );
 }
