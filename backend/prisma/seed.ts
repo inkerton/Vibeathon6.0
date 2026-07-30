@@ -732,8 +732,19 @@ async function main() {
   // --- Seed User Preferences for AI Recommendations ---
   console.log('🎯 Creating user preferences...');
   for (const customer of customerUsers) {
-    await prisma.userPreference.create({
-      data: {
+    await prisma.userPreference.upsert({
+      where: { user_id: customer.id },
+      update: {
+        preferred_categories: ['main_course', 'desserts'],
+        dietary_restrictions: [],
+        favorite_items: [createdMenuItems[5].id, createdMenuItems[3].id],
+        price_range: {
+          min: 10,
+          max: 25,
+          avg: 17.5
+        }
+      },
+      create: {
         user_id: customer.id,
         preferred_categories: ['main_course', 'desserts'],
         dietary_restrictions: [],
@@ -746,7 +757,7 @@ async function main() {
       }
     });
   }
-  console.log(`✅ Created ${customerUsers.length} user preferences`);
+  console.log(`✅ Created/updated ${customerUsers.length} user preferences`);
 
   console.log('🎉 Database seeding completed!');
   console.log('\n📊 Summary:');
