@@ -183,6 +183,28 @@ Provide response in JSON format:
     };
   }
 
+  async getInventoryPredictions(daysAhead: number = 7) {
+    const items = await prisma.inventoryItem.findMany();
+    
+    const predictions = await Promise.all(
+      items.map(async (item) => {
+        try {
+          return await this.predictInventoryUsage(item.id, daysAhead);
+        } catch (error) {
+          console.error(`Error predicting for item ${item.name}:`, error);
+          return null;
+        }
+      })
+    );
+
+    return {
+      data: {
+        predictions: predictions.filter(p => p !== null),
+        generatedAt: new Date().toISOString()
+      }
+    };
+  }
+
   async getAllPredictions() {
     const items = await prisma.inventoryItem.findMany();
     
@@ -200,7 +222,7 @@ Provide response in JSON format:
     return predictions.filter(p => p !== null);
   }
 
-  async getLowStockAlerts() {
+  async getLowStockAlerts(threshold?: number) {
     const predictions = await prisma.inventoryPrediction.findMany({
       where: {
         prediction_date: {
@@ -214,25 +236,34 @@ Provide response in JSON format:
 
     const alerts = predictions.filter(pred => {
       const daysUntilEmpty = pred.item.total_stock / pred.predicted_usage;
-      return daysUntilEmpty < 3 || pred.item.total_stock <= pred.item.reorder_threshold;
+      return daysUntilEmpty < (threshold || 3) || pred.item.total_stock <= pred.item.reorder_threshold;
     });
 
-    return alerts.map(alert => ({
-      id: alert.id,
-      item: {
-        id: alert.item.id,
-        name: alert.item.name,
-        unit: alert.item.unit,
-        total_stock: alert.item.total_stock,
-        reorder_threshold: alert.item.reorder_threshold
-      },
-      predicted_usage: alert.predicted_usage,
-      recommended_restock: alert.recommended_restock,
-      confidence: alert.confidence,
-      prediction_date: alert.prediction_date,
-      daysUntilEmpty: alert.item.total_stock / alert.predicted_usage,
-      severity: alert.item.total_stock <= alert.item.reorder_threshold ? 'critical' : 'warning'
-    }));
+    return {
+      data: {
+        alerts: alerts.map(alert => ({
+          id: alert.id,
+          item: {
+            id: alert.item.id,
+            name: alert.item.name,
+            unit: alert.item.unit,
+            total_stock: alert.item.total_stock,
+            reorder_threshold: alert.item.reorder_threshold
+          },
+          predicted_usage: alert.predicted_usage,
+          recommended_restock: alert.recommended_restock,
+          confidence: alert.confidence,
+          prediction_date: alert.prediction_date,
+          daysUntilEmpty: alert.item.total_stock / alert.predicted_usage,
+          severity: alert.item.total_stock <= alert.item.reorder_threshold ? 'critical' : 'warning'
+        })),
+        generatedAt: new Date().toISOString()
+      }
+    };
+  }
+
+  async getItemPrediction(itemId: string, daysAhead: number = 7) {
+    return await this.predictInventoryUsage(itemId, daysAhead);
   }
 
   async getItemPredictionHistory(itemId: string, days: number = 30) {
@@ -247,7 +278,13 @@ Provide response in JSON format:
       orderBy: { created_at: 'desc' }
     });
 
-    return predictions;
+    return {
+      data: {
+        predictions,
+        itemId,
+        generatedAt: new Date().toISOString()
+      }
+    };
   }
 }
 

@@ -323,33 +323,134 @@ Focus on:
     return insights;
   }
 
-  async getRevenueAnalytics(days: number = 30) {
-    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  async getRevenueAnalytics(startDate?: Date, endDate?: Date) {
+    const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate || new Date();
     
     const orders = await prisma.order.findMany({
       where: {
         payment_status: 'paid',
-        created_at: { gte: startDate }
+        created_at: { gte: start, lte: end }
+      },
+      include: {
+        items: {
+          include: {
+            menu_item: true
+          }
+        }
       },
       orderBy: { created_at: 'asc' }
     });
 
-    // Group by day
-    const dailyRevenue = new Map<string, number>();
+    if (orders.length === 0) {
+      return {
+        period: { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] },
+        totalRevenue: 0,
+        avgDailyRevenue: 0,
+        trend: 'STABLE',
+        growthRate: 0,
+        breakdown: {
+          byCategory: [],
+          byDayOfWeek: [],
+          byHour: []
+        },
+        insights: ['No revenue data available for this period']
+      };
+    }
+
+    const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total_amount), 0);
+    const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)));
+    const avgDailyRevenue = totalRevenue / days;
+
+    // Calculate growth rate (compare first half vs second half)
+    const midpoint = new Date((start.getTime() + end.getTime()) / 2);
+    const firstHalf = orders.filter(o => o.created_at < midpoint);
+    const secondHalf = orders.filter(o => o.created_at >= midpoint);
+    const firstHalfRevenue = firstHalf.reduce((sum, o) => sum + Number(o.total_amount), 0);
+    const secondHalfRevenue = secondHalf.reduce((sum, o) => sum + Number(o.total_amount), 0);
+    const growthRate = firstHalfRevenue > 0 ? (secondHalfRevenue - firstHalfRevenue) / firstHalfRevenue : 0;
+    const trend = growthRate > 0.05 ? 'INCREASING' : growthRate < -0.05 ? 'DECREASING' : 'STABLE';
+
+    // By Category
+    const categoryRevenue = new Map<string, number>();
     orders.forEach(order => {
-      const date = order.created_at.toISOString().split('T')[0];
-      const current = dailyRevenue.get(date) || 0;
-      dailyRevenue.set(date, current + Number(order.total_amount));
+      order.items.forEach(item => {
+        const category = item.menu_item.category;
+        categoryRevenue.set(category, (categoryRevenue.get(category) || 0) + Number(item.price_at_order) * item.quantity);
+      });
     });
+    const byCategory = Array.from(categoryRevenue.entries())
+      .map(([category, revenue]) => ({
+        category,
+        revenue,
+        percentage: (revenue / totalRevenue) * 100
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+
+    // By Day of Week
+    const dayRevenue = new Map<string, number>();
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    orders.forEach(order => {
+      const day = dayNames[order.created_at.getDay()];
+      dayRevenue.set(day, (dayRevenue.get(day) || 0) + Number(order.total_amount));
+    });
+    const byDayOfWeek = dayNames
+      .map(day => ({
+        day,
+        revenue: dayRevenue.get(day) || 0,
+        percentage: ((dayRevenue.get(day) || 0) / totalRevenue) * 100
+      }))
+      .filter(d => d.revenue > 0);
+
+    // By Hour
+    const hourRevenue = new Map<number, number>();
+    orders.forEach(order => {
+      const hour = order.created_at.getHours();
+      hourRevenue.set(hour, (hourRevenue.get(hour) || 0) + Number(order.total_amount));
+    });
+    const byHour = Array.from(hourRevenue.entries())
+      .map(([hour, revenue]) => ({
+        hour,
+        revenue,
+        percentage: (revenue / totalRevenue) * 100
+      }))
+      .sort((a, b) => a.hour - b.hour);
+
+    // Generate insights
+    const insights: string[] = [];
+    if (growthRate > 0.1) {
+      insights.push(`Revenue grew by ${(growthRate * 100).toFixed(1)}% during this period`);
+    } else if (growthRate < -0.1) {
+      insights.push(`Revenue declined by ${Math.abs(growthRate * 100).toFixed(1)}% during this period`);
+    }
+    
+    const topCategory = byCategory[0];
+    if (topCategory) {
+      insights.push(`${topCategory.category} is the top revenue category at ₹${topCategory.revenue.toFixed(2)} (${topCategory.percentage.toFixed(1)}%)`);
+    }
+    
+    const topDay = byDayOfWeek.reduce((max, d) => d.revenue > max.revenue ? d : max, byDayOfWeek[0]);
+    if (topDay) {
+      insights.push(`${topDay.day} generates the most revenue at ₹${topDay.revenue.toFixed(2)}`);
+    }
+    
+    const peakHour = byHour.reduce((max, h) => h.revenue > max.revenue ? h : max, byHour[0]);
+    if (peakHour) {
+      insights.push(`Peak revenue hour is ${peakHour.hour}:00 with ₹${peakHour.revenue.toFixed(2)}`);
+    }
 
     return {
-      totalRevenue: orders.reduce((sum, o) => sum + Number(o.total_amount), 0),
-      totalOrders: orders.length,
-      avgOrderValue: orders.length > 0 ? orders.reduce((sum, o) => sum + Number(o.total_amount), 0) / orders.length : 0,
-      dailyBreakdown: Array.from(dailyRevenue.entries()).map(([date, revenue]) => ({
-        date,
-        revenue
-      }))
+      period: { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] },
+      totalRevenue,
+      avgDailyRevenue,
+      trend,
+      growthRate,
+      breakdown: {
+        byCategory,
+        byDayOfWeek,
+        byHour
+      },
+      insights
     };
   }
 
