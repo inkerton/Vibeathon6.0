@@ -29,7 +29,7 @@ function GoogleAuthSuccessContent() {
 
         // Redirect to home (will be redirected based on role)
         setTimeout(() => {
-          window.location.href = '/';
+          window.location.href = '/customer/menu';
         }, 1000);
       } else {
         setError('Authentication failed. Missing tokens.');
