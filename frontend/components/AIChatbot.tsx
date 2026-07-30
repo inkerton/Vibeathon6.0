@@ -75,7 +75,7 @@ export function AIChatbot() {
     try {
       const response = await apiClient.post('/ai/chat', {
         message: content,
-        conversationHistory: messages.map((m) => ({
+        context: messages.map((m) => ({
           role: m.role,
           content: m.content,
         })),
