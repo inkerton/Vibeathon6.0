@@ -690,6 +690,64 @@ async function main() {
   }
   console.log(`✅ Created ${reservations.length} reservations`);
 
+  // --- Seed Historical Inventory Transactions for AI Predictions ---
+  console.log('📊 Creating historical inventory transactions...');
+  const inventoryStaff = createdStaff.find(s => s.role === Role.inventory);
+  
+  if (inventoryStaff) {
+    let transactionCount = 0;
+    // Create transactions for the last 30 days
+    for (let daysAgo = 30; daysAgo >= 0; daysAgo--) {
+      const transactionDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+      
+      // Random usage for some items
+      const itemsToUse = [
+        { name: 'Tomatoes', usage: Math.random() * 3 + 1 },
+        { name: 'Mozzarella Cheese', usage: Math.random() * 2 + 0.5 },
+        { name: 'Chicken Breast', usage: Math.random() * 4 + 1 },
+        { name: 'Pasta', usage: Math.random() * 5 + 2 },
+        { name: 'Coffee Beans', usage: Math.random() * 0.5 + 0.2 },
+      ];
+
+      for (const item of itemsToUse) {
+        const inventoryItem = createdInventoryItems[item.name];
+        if (inventoryItem) {
+          await prisma.inventoryTransaction.create({
+            data: {
+              item_id: inventoryItem.id,
+              type: 'deduct',
+              quantity: item.usage,
+              performed_by_id: inventoryStaff.id,
+              note: 'Daily usage',
+              created_at: transactionDate
+            }
+          });
+          transactionCount++;
+        }
+      }
+    }
+    console.log(`✅ Created ${transactionCount} historical inventory transactions`);
+  }
+
+  // --- Seed User Preferences for AI Recommendations ---
+  console.log('🎯 Creating user preferences...');
+  for (const customer of customerUsers) {
+    await prisma.userPreference.create({
+      data: {
+        user_id: customer.id,
+        preferred_categories: ['main_course', 'desserts'],
+        dietary_restrictions: [],
+        favorite_items: [createdMenuItems[5].id, createdMenuItems[3].id],
+        price_range: {
+          min: 10,
+          max: 25,
+          avg: 17.5
+        }
+      }
+    });
+  }
+  console.log(`✅ Created ${customerUsers.length} user preferences`);
+
   console.log('🎉 Database seeding completed!');
   console.log('\n📊 Summary:');
   console.log(`   - Menu Items: ${menuItems.length}`);
