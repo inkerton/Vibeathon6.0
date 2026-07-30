@@ -69,8 +69,13 @@ export function RevenueAnalytics() {
 
     try {
       const res = await apiClient.get('/ai/analytics/revenue');
-      const raw = res.data?.data ?? res.data;
-      setData(raw?.analytics ?? raw ?? null);
+      console.log('Revenue analytics response:', res.data);
+      
+      // Backend returns the analytics object directly (not wrapped in data.data)
+      const analytics = res.data;
+      console.log('Analytics data:', analytics);
+      
+      setData(analytics || null);
     } catch (err) {
       console.error('Failed to load revenue analytics:', err);
     } finally {

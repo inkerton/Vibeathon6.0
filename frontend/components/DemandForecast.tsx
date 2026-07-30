@@ -83,22 +83,29 @@ export function DemandForecast() {
       ]);
 
       if (forecastRes.status === 'fulfilled') {
-        // Spec: data.forecast.dailyForecasts[], summary, itemForecasts[], insights[]
-        const raw = forecastRes.value.data?.data ?? forecastRes.value.data;
-        if (raw?.forecast) {
-          // Backend follows spec shape
-          const f = raw.forecast;
+        // API returns { data: { forecasts, itemForecasts, insights } }
+        const response = forecastRes.value;
+        console.log('Full forecast response:', response);
+        console.log('Response data:', response.data);
+        
+        // Extract the actual data - axios wraps in .data, then API wraps in .data again
+        const apiData = response.data?.data || response.data;
+        console.log('Extracted API data:', apiData);
+        
+        // Backend returns { forecasts, itemForecasts, insights }
+        if (apiData?.forecasts && Array.isArray(apiData.forecasts)) {
+          console.log('Setting forecast with', apiData.forecasts.length, 'daily forecasts');
           setForecast({
-            forecasts: f.dailyForecasts ?? [],
-            itemForecasts: f.itemForecasts ?? [],
-            insights: f.insights ?? [],
+            forecasts: apiData.forecasts,
+            itemForecasts: apiData.itemForecasts || [],
+            insights: apiData.insights || [],
           });
-        } else if (raw?.forecasts) {
-          // Backend returns flat shape (legacy)
-          setForecast(raw);
         } else {
-          setForecast(raw ?? null);
+          console.warn('Unexpected forecast response structure. Expected forecasts array, got:', apiData);
+          setForecast(null);
         }
+      } else {
+        console.error('Forecast request failed:', forecastRes.status === 'rejected' ? forecastRes.reason : 'Unknown error');
       }
       if (staffRes.status === 'fulfilled') {
         // Spec: data.recommendations.{ date, predictedOrders, totalStaffRecommended, peakHours[], confidence }

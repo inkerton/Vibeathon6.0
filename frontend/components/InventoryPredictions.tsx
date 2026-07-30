@@ -109,8 +109,15 @@ export function InventoryPredictions() {
       ]);
 
       if (predRes.status === 'fulfilled') {
-        const d = predRes.value.data?.data ?? predRes.value.data ?? [];
-        setPredictions(Array.isArray(d) ? d : []);
+        // API returns { data: { predictions: [...], generatedAt } }
+        const response = predRes.value.data;
+        const apiData = response?.data || response;
+        const predictionsList = apiData?.predictions || [];
+        
+        console.log('Inventory predictions response:', apiData);
+        console.log('Predictions list:', predictionsList);
+        
+        setPredictions(Array.isArray(predictionsList) ? predictionsList : []);
       }
       if (alertRes.status === 'fulfilled') {
         const d = alertRes.value.data?.data ?? alertRes.value.data ?? {};
