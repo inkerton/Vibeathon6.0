@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth-context';
-import { apiClient } from '@/lib/api-client';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
+import { apiClient } from "@/lib/api-client";
 import {
   ShoppingCart,
   Clock,
@@ -13,13 +13,13 @@ import {
   Calendar,
   Package,
   TrendingUp,
-  ChevronRight
-} from 'lucide-react';
-import { Card } from '@/components/Card';
-import { Button } from '@/components/Button';
-import { ErrorMessage } from '@/components/ErrorMessage';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { Badge } from '@/components/Badge';
+  ChevronRight,
+} from "lucide-react";
+import { Card } from "@/components/Card";
+import { Button } from "@/components/Button";
+import { ErrorMessage } from "@/components/ErrorMessage";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { Badge } from "@/components/Badge";
 
 interface DashboardStats {
   totalOrders: number;
@@ -56,25 +56,26 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== 'admin')) {
-      router.push('/auth/login');
+    if (!authLoading && (!user || user.role !== "admin")) {
+      router.push("/auth/login");
     }
   }, [user, authLoading, router]);
 
   const fetchDashboardData = async () => {
     try {
-      setError('');
-      
+      setError("");
+
       // Fetch all required data
-      const [ordersRes, inventoryRes, reservationsRes, staffRes] = await Promise.all([
-        apiClient.get('/orders'),
-        apiClient.get('/inventory/low-stock'),
-        apiClient.get('/reservations'),
-        apiClient.get('/staff')
-      ]);
+      const [ordersRes, inventoryRes, reservationsRes, staffRes] =
+        await Promise.all([
+          apiClient.get("/orders"),
+          apiClient.get("/inventory/low-stock"),
+          apiClient.get("/reservations"),
+          apiClient.get("/staff"),
+        ]);
 
       // Backend returns { status: 'success', data: [...] }
       // Extract the actual data array from response.data.data
@@ -85,29 +86,33 @@ export default function AdminDashboard() {
 
       // Handle response data - ensure arrays
       const orders = Array.isArray(ordersData) ? ordersData : [];
-      const reservations = Array.isArray(reservationsData) ? reservationsData : [];
+      const reservations = Array.isArray(reservationsData)
+        ? reservationsData
+        : [];
       const staff = Array.isArray(staffData) ? staffData : [];
-      
+
       // Transform inventory data from snake_case to camelCase
-      const lowStockItems = (Array.isArray(inventoryData) ? inventoryData : []).map((item: any) => ({
+      const lowStockItems = (
+        Array.isArray(inventoryData) ? inventoryData : []
+      ).map((item: any) => ({
         id: item.id,
         name: item.name,
         unit: item.unit,
-        category: item.category || 'General',
+        category: item.category || "General",
         availableStock: (item.total_stock || 0) - (item.reserved_stock || 0),
         reorderThreshold: item.reorder_threshold || 0,
       }));
 
       // Calculate stats
-      const today = new Date().toISOString().split('T')[0];
-      
-      const activeOrders = orders.filter((o: any) => 
-        ['placed', 'preparing', 'ready'].includes(o.order_status)
+      const today = new Date().toISOString().split("T")[0];
+
+      const activeOrders = orders.filter((o: any) =>
+        ["placed", "preparing", "ready"].includes(o.order_status),
       );
 
-      const completedToday = orders.filter((o: any) => 
-        o.order_status === 'completed' && 
-        o.updated_at.startsWith(today)
+      const completedToday = orders.filter(
+        (o: any) =>
+          o.order_status === "completed" && o.updated_at.startsWith(today),
       );
 
       const todayRevenue = completedToday.reduce((sum: number, o: any) => {
@@ -116,33 +121,43 @@ export default function AdminDashboard() {
       }, 0);
 
       const ordersByStatus = {
-        placed: orders.filter((o: any) => o.order_status === 'placed').length,
-        preparing: orders.filter((o: any) => o.order_status === 'preparing').length,
-        ready: orders.filter((o: any) => o.order_status === 'ready').length,
-        completed: orders.filter((o: any) => o.order_status === 'completed').length
+        placed: orders.filter((o: any) => o.order_status === "placed").length,
+        preparing: orders.filter((o: any) => o.order_status === "preparing")
+          .length,
+        ready: orders.filter((o: any) => o.order_status === "ready").length,
+        completed: orders.filter((o: any) => o.order_status === "completed")
+          .length,
       };
 
-      const reservationsToday = reservations.filter((r: any) => 
-        r.date === today
+      const reservationsToday = reservations.filter(
+        (r: any) => r.date === today,
       );
 
       const reservationsByStatus = {
-        pending: reservationsToday.filter((r: any) => r.status === 'pending').length,
-        confirmed: reservationsToday.filter((r: any) => r.status === 'confirmed').length,
-        checkedIn: reservationsToday.filter((r: any) => r.status === 'checked_in').length
+        pending: reservationsToday.filter((r: any) => r.status === "pending")
+          .length,
+        confirmed: reservationsToday.filter(
+          (r: any) => r.status === "confirmed",
+        ).length,
+        checkedIn: reservationsToday.filter(
+          (r: any) => r.status === "checked_in",
+        ).length,
       };
 
       const recentOrders = orders
-        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        )
         .slice(0, 5);
 
       // Calculate staff statistics
       const activeStaff = staff.filter((s: any) => s.is_active);
       const staffByRole = {
-        admin: staff.filter((s: any) => s.role === 'admin').length,
-        kitchen: staff.filter((s: any) => s.role === 'kitchen').length,
-        inventory: staff.filter((s: any) => s.role === 'inventory').length,
-        reception: staff.filter((s: any) => s.role === 'reception').length
+        admin: staff.filter((s: any) => s.role === "admin").length,
+        kitchen: staff.filter((s: any) => s.role === "kitchen").length,
+        inventory: staff.filter((s: any) => s.role === "inventory").length,
+        reception: staff.filter((s: any) => s.role === "reception").length,
       };
 
       setStats({
@@ -155,22 +170,22 @@ export default function AdminDashboard() {
         staffOverview: {
           total: staff.length,
           active: activeStaff.length,
-          byRole: staffByRole
+          byRole: staffByRole,
         },
         recentOrders,
-        lowStockItems: lowStockItems.slice(0, 5)
+        lowStockItems: lowStockItems.slice(0, 5),
       });
 
       setLoading(false);
     } catch (err: any) {
-      console.error('Failed to fetch dashboard data:', err);
-      setError(err.response?.data?.message || 'Failed to load dashboard data');
+      console.error("Failed to fetch dashboard data:", err);
+      setError(err.response?.data?.message || "Failed to load dashboard data");
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user && user.role === 'admin') {
+    if (user && user.role === "admin") {
       fetchDashboardData();
 
       // Poll for updates every 15 seconds
@@ -201,22 +216,22 @@ export default function AdminDashboard() {
   if (!stats) return null;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 pb-28 md:pb-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">
-            Welcome back, {user?.name}
-          </p>
+          <p className="text-gray-600 mt-1">Welcome back, {user?.name}</p>
         </div>
         <div className="text-right text-sm text-gray-600">
-          <div>{new Date().toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}</div>
+          <div>
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </div>
           <div className="text-xs text-gray-500 mt-1">
             Auto-refreshing every 15s
           </div>
@@ -286,7 +301,9 @@ export default function AdminDashboard() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Today's Revenue</p>
+              <p className="text-sm font-medium text-gray-600">
+                Today's Revenue
+              </p>
               <p className="text-3xl font-bold text-gray-900 mt-2">
                 ₹{Number(stats.todayRevenue).toFixed(2)}
               </p>
@@ -309,7 +326,9 @@ export default function AdminDashboard() {
           </h2>
           <div className="space-y-3">
             <div className="flex items-center justify-between pb-3 border-b">
-              <span className="text-sm font-medium text-gray-700">Total Staff</span>
+              <span className="text-sm font-medium text-gray-700">
+                Total Staff
+              </span>
               <span className="text-2xl font-bold text-gray-900">
                 {stats.staffOverview.total}
               </span>
@@ -323,19 +342,27 @@ export default function AdminDashboard() {
             <div className="pt-3 border-t space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Admin</span>
-                <span className="font-medium text-gray-900">{stats.staffOverview.byRole.admin}</span>
+                <span className="font-medium text-gray-900">
+                  {stats.staffOverview.byRole.admin}
+                </span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Kitchen</span>
-                <span className="font-medium text-gray-900">{stats.staffOverview.byRole.kitchen}</span>
+                <span className="font-medium text-gray-900">
+                  {stats.staffOverview.byRole.kitchen}
+                </span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Inventory</span>
-                <span className="font-medium text-gray-900">{stats.staffOverview.byRole.inventory}</span>
+                <span className="font-medium text-gray-900">
+                  {stats.staffOverview.byRole.inventory}
+                </span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Reception</span>
-                <span className="font-medium text-gray-900">{stats.staffOverview.byRole.reception}</span>
+                <span className="font-medium text-gray-900">
+                  {stats.staffOverview.byRole.reception}
+                </span>
               </div>
             </div>
           </div>
@@ -352,7 +379,9 @@ export default function AdminDashboard() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <Badge variant="info" className="mr-2">Placed</Badge>
+                <Badge variant="info" className="mr-2">
+                  Placed
+                </Badge>
                 <span className="text-sm text-gray-600">New orders</span>
               </div>
               <span className="text-lg font-semibold text-gray-900">
@@ -361,7 +390,9 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <Badge variant="warning" className="mr-2">Preparing</Badge>
+                <Badge variant="warning" className="mr-2">
+                  Preparing
+                </Badge>
                 <span className="text-sm text-gray-600">In kitchen</span>
               </div>
               <span className="text-lg font-semibold text-gray-900">
@@ -370,7 +401,9 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <Badge variant="success" className="mr-2">Ready</Badge>
+                <Badge variant="success" className="mr-2">
+                  Ready
+                </Badge>
                 <span className="text-sm text-gray-600">Ready to serve</span>
               </div>
               <span className="text-lg font-semibold text-gray-900">
@@ -379,7 +412,9 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-center justify-between pt-3 border-t">
               <div className="flex items-center">
-                <span className="text-sm font-medium text-gray-700">Completed</span>
+                <span className="text-sm font-medium text-gray-700">
+                  Completed
+                </span>
               </div>
               <span className="text-lg font-semibold text-gray-900">
                 {stats.ordersByStatus.completed}
@@ -397,8 +432,12 @@ export default function AdminDashboard() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <Badge variant="warning" className="mr-2">Pending</Badge>
-                <span className="text-sm text-gray-600">Awaiting confirmation</span>
+                <Badge variant="warning" className="mr-2">
+                  Pending
+                </Badge>
+                <span className="text-sm text-gray-600">
+                  Awaiting confirmation
+                </span>
               </div>
               <span className="text-lg font-semibold text-gray-900">
                 {stats.reservationsToday.pending}
@@ -406,8 +445,12 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <Badge variant="info" className="mr-2">Confirmed</Badge>
-                <span className="text-sm text-gray-600">Confirmed bookings</span>
+                <Badge variant="info" className="mr-2">
+                  Confirmed
+                </Badge>
+                <span className="text-sm text-gray-600">
+                  Confirmed bookings
+                </span>
               </div>
               <span className="text-lg font-semibold text-gray-900">
                 {stats.reservationsToday.confirmed}
@@ -415,7 +458,9 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <Badge variant="success" className="mr-2">Checked-in</Badge>
+                <Badge variant="success" className="mr-2">
+                  Checked-in
+                </Badge>
                 <span className="text-sm text-gray-600">Currently dining</span>
               </div>
               <span className="text-lg font-semibold text-gray-900">
@@ -431,7 +476,9 @@ export default function AdminDashboard() {
         {/* Recent Orders */}
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Orders</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Recent Orders
+            </h2>
             <Button variant="ghost" size="sm">
               View All
               <ChevronRight className="w-4 h-4 ml-1" />
@@ -468,9 +515,13 @@ export default function AdminDashboard() {
                     </span>
                     <Badge
                       variant={
-                        order.order_status === 'completed' ? 'success' :
-                        order.order_status === 'ready' ? 'success' :
-                        order.order_status === 'preparing' ? 'warning' : 'info'
+                        order.order_status === "completed"
+                          ? "success"
+                          : order.order_status === "ready"
+                            ? "success"
+                            : order.order_status === "preparing"
+                              ? "warning"
+                              : "info"
                       }
                     >
                       {order.order_status}
@@ -489,10 +540,10 @@ export default function AdminDashboard() {
               <AlertTriangle className="w-5 h-5 mr-2 text-red-600" />
               Low Stock Alerts
             </h2>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
-              onClick={() => router.push('/admin/inventory')}
+              onClick={() => router.push("/admin/inventory")}
             >
               Manage
               <ChevronRight className="w-4 h-4 ml-1" />
@@ -535,8 +586,8 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <Card className="p-6">
+      {/* Desktop Quick Actions */}
+      <Card className="hidden md:block p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Quick Actions
         </h2>
@@ -544,7 +595,7 @@ export default function AdminDashboard() {
           <Button
             variant="outline"
             className="flex flex-col items-center justify-center h-24"
-            onClick={() => router.push('/admin/inventory')}
+            onClick={() => router.push("/admin/inventory")}
           >
             <Package className="w-6 h-6 mb-2" />
             <span>Inventory</span>
@@ -552,7 +603,7 @@ export default function AdminDashboard() {
           <Button
             variant="outline"
             className="flex flex-col items-center justify-center h-24"
-            onClick={() => router.push('/admin/menu')}
+            onClick={() => router.push("/admin/menu")}
           >
             <ShoppingCart className="w-6 h-6 mb-2" />
             <span>Menu</span>
@@ -560,7 +611,7 @@ export default function AdminDashboard() {
           <Button
             variant="outline"
             className="flex flex-col items-center justify-center h-24"
-            onClick={() => router.push('/admin/staff')}
+            onClick={() => router.push("/admin/staff")}
           >
             <Users className="w-6 h-6 mb-2" />
             <span>Staff</span>
@@ -568,13 +619,56 @@ export default function AdminDashboard() {
           <Button
             variant="outline"
             className="flex flex-col items-center justify-center h-24"
-            onClick={() => router.push('/admin/recipes')}
+            onClick={() => router.push("/admin/recipes")}
           >
             <Package className="w-6 h-6 mb-2" />
             <span>Recipes</span>
           </Button>
         </div>
       </Card>
+
+      {/* Mobile Quick Actions */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50">
+        <div className="border-t bg-white/95 backdrop-blur-xl shadow-[0_-8px_24px_rgba(0,0,0,0.08)] p-2">
+          <div className="grid grid-cols-4 gap-2">
+            <Button
+              variant="ghost"
+              className="flex flex-col items-center justify-center h-16 rounded-xl"
+              onClick={() => router.push("/admin/inventory")}
+            >
+              <Package className="w-5 h-5 mb-1" />
+              <span className="text-[11px]">Inventory</span>
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="flex flex-col items-center justify-center h-16 rounded-xl"
+              onClick={() => router.push("/admin/menu")}
+            >
+              <ShoppingCart className="w-5 h-5 mb-1" />
+              <span className="text-[11px]">Menu</span>
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="flex flex-col items-center justify-center h-16 rounded-xl"
+              onClick={() => router.push("/admin/staff")}
+            >
+              <Users className="w-5 h-5 mb-1" />
+              <span className="text-[11px]">Staff</span>
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="flex flex-col items-center justify-center h-16 rounded-xl"
+              onClick={() => router.push("/admin/recipes")}
+            >
+              <Package className="w-5 h-5 mb-1" />
+              <span className="text-[11px]">Recipes</span>
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

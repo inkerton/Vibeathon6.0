@@ -19,6 +19,8 @@
   "type": "commonjs",
   "dependencies": {
     "@prisma/client": "^6.2.1",
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.111.0",
     "@types/passport": "^1.0.17",
     "@types/passport-google-oauth20": "^2.0.17",
     "bcrypt": "^5.1.1",
