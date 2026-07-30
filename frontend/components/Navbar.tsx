@@ -31,11 +31,11 @@ export function Navbar({ onLogout }: NavbarProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
               </div>
-              <div className="hidden sm:block">
-                <h1 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+              <div className="hidden md:block shrink-0">
+                <h1 className="text-lg font-bold whitespace-nowrap text-gray-900 group-hover:text-blue-600 transition-colors">
                   Smart Restaurant
                 </h1>
-                <p className="text-xs text-gray-500 -mt-0.5">Management System</p>
+                <p className="text-xs whitespace-nowrap text-gray-500 -mt-0.5">Management System</p>
               </div>
             </Link>
 
