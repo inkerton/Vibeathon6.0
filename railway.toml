@@ -11,6 +11,5 @@ startCommand = "bash scripts/migrate-safe.sh && npm run seed && npm start"
 sleepApplication = false
 useLegacyStacker = false
 ipv6EgressEnabled = false
-multiRegionConfig = {"sfo":{"numReplicas":1}}
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
