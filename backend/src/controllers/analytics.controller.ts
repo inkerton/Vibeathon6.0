@@ -5,8 +5,7 @@ import analyticsService from '../services/analytics.service';
 export class AnalyticsController {
   async generateInsights(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { type } = req.body;
-      const result = await analyticsService.generateInsights(type);
+      const result = await analyticsService.generateInsights();
       // generateInsights already returns { insights: [...] }
       res.json(result);
     } catch (error) {
@@ -16,7 +15,7 @@ export class AnalyticsController {
 
   async getInsights(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { type } = req.params;
+      const type = req.params.type as string;
       const insights = await analyticsService.getInsights(type);
       res.json({ insights });
     } catch (error) {

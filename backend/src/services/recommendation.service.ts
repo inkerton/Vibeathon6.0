@@ -285,8 +285,8 @@ Consider:
   }
 
   async updateUserPreferences(userId: string, updates: {
-    dietaryRestrictions?: string[];
-    priceRange?: any;
+    dietary_restrictions?: string[];
+    price_range?: any;
   }) {
     const existing = await prisma.userPreference.findUnique({
       where: { user_id: userId }

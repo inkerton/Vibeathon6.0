@@ -59,7 +59,8 @@ describe('Auth Service - Unit Tests', () => {
         email: 'new@example.com',
         password_hash: 'hashed_password',
         name: 'New User',
-        role: 'customer',
+        role: 'customer' as const,
+        auth_provider: 'local' as const,
       };
 
       (mockPrisma.user.create as jest.Mock).mockResolvedValue({

@@ -153,7 +153,7 @@ describe('Order Creation and Management', () => {
         });
 
       expect(response.status).toBe(201);
-      const expectedTotal = menuItem!.price * 3;
+      const expectedTotal = Number(menuItem!.price) * 3;
       expect(response.body.data.total_amount).toBeCloseTo(expectedTotal, 2);
     });
   });

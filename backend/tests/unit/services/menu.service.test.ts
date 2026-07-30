@@ -140,6 +140,7 @@ describe('Menu Service - Unit Tests', () => {
         name: 'Test Item',
         price: 10.00,
         category: 'appetizers',
+        description: 'Test description',
       };
 
       const createdItem = { id: 'id', ...newItem, is_available: true };

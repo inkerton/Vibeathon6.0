@@ -321,7 +321,15 @@ Provide response in JSON format with dates in YYYY-MM-DD format:
     };
   }
 
-  async getStaffingRecommendations(date: Date) {
+  async getStaffingRecommendations(date: Date): Promise<{
+    date: Date;
+    predictedOrders: number;
+    recommendedStaff: number;
+    staffBreakdown: { kitchen: number; reception: number; inventory: number };
+    peakHours: any;
+    confidence: number;
+    reasoning: string;
+  }> {
     console.log('a');
     
     // Create date string in YYYY-MM-DD format for consistent comparison

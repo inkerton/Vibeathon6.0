@@ -43,7 +43,7 @@ export class ForecastController {
 
   async getItemForecast(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { itemId } = req.params;
+      const itemId = req.params.itemId as string;
       const { daysAhead } = req.query;
       
       const forecast = await forecastService.getItemForecast(

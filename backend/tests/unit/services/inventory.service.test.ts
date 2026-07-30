@@ -81,7 +81,7 @@ describe('Inventory Service - Unit Tests', () => {
     it('should create add transaction', async () => {
       const transaction = {
         item_id: 'item-1',
-        type: 'add',
+        type: 'restock' as const,
         quantity: 20,
         performed_by_id: 'user-1',
         note: 'Restocking',
@@ -99,13 +99,13 @@ describe('Inventory Service - Unit Tests', () => {
       expect(mockPrisma.inventoryTransaction.create).toHaveBeenCalledWith({
         data: transaction,
       });
-      expect(result.type).toBe('add');
+      expect(result.type).toBe('restock');
     });
 
     it('should create deduct transaction', async () => {
       const transaction = {
         item_id: 'item-1',
-        type: 'deduct',
+        type: 'deduct' as const,
         quantity: 5,
         performed_by_id: 'user-1',
         note: 'Used in kitchen',

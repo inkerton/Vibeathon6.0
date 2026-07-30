@@ -6,7 +6,7 @@ export class RecommendationController {
   async getRecommendations(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user!.id;
-      const recommendations = await recommendationService.getRecommendations(userId);
+      const recommendations = await recommendationService.generateRecommendations(userId);
       res.json(recommendations);
     } catch (error) {
       next(error);
@@ -18,7 +18,7 @@ export class RecommendationController {
       const userId = req.user!.id;
       const { preferences } = req.body;
       
-      const updated = await recommendationService.updatePreferences(userId, preferences);
+      const updated = await recommendationService.updateUserPreferences(userId, preferences);
       res.json(updated);
     } catch (error) {
       next(error);

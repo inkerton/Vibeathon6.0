@@ -17,7 +17,7 @@ export class PredictionController {
 
   async getItemPrediction(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { itemId } = req.params;
+      const itemId = req.params.itemId as string;
       const { days } = req.query;
       
       const prediction = await predictionService.getItemPrediction(
@@ -45,7 +45,7 @@ export class PredictionController {
 
   async getItemPredictionHistory(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { itemId } = req.params;
+      const itemId = req.params.itemId as string;
       const { days } = req.query;
       
       const history = await predictionService.getItemPredictionHistory(

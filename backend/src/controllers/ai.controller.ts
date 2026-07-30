@@ -22,7 +22,7 @@ export class AIController {
 
   async getPredictions(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { type } = req.params; // 'inventory' or 'demand'
+      const type = req.params.type as string; // 'inventory' or 'demand'
       
       if (!['inventory', 'demand'].includes(type)) {
         return res.status(400).json({ error: 'Invalid prediction type. Use "inventory" or "demand"' });

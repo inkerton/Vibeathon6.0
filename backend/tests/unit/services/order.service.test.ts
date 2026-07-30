@@ -41,6 +41,7 @@ describe('Order Service - Unit Tests', () => {
         total_amount: 40.97,
         order_status: OrderStatus.placed,
         payment_status: PaymentStatus.unpaid,
+        created_by_role: 'customer' as const,
       };
 
       const createdOrder = { id: 'order-1', ...orderData };
@@ -60,6 +61,7 @@ describe('Order Service - Unit Tests', () => {
         table_id: 'table-1',
         total_amount: 25.00,
         order_status: OrderStatus.placed,
+        created_by_role: 'customer' as const,
       };
 
       (mockPrisma.order.create as jest.Mock).mockResolvedValue({
@@ -156,20 +158,20 @@ describe('Order Service - Unit Tests', () => {
       expect(order.payment_status).toBe(PaymentStatus.paid);
     });
 
-    it('should handle partial payment', async () => {
+    it('should handle pending payment at table', async () => {
       const updatedOrder = {
         id: 'order-1',
-        payment_status: PaymentStatus.partial,
+        payment_status: PaymentStatus.pending_at_table,
       };
 
       (mockPrisma.order.update as jest.Mock).mockResolvedValue(updatedOrder);
 
       const order = await mockPrisma.order.update({
         where: { id: 'order-1' },
-        data: { payment_status: PaymentStatus.partial },
+        data: { payment_status: PaymentStatus.pending_at_table },
       });
 
-      expect(order.payment_status).toBe(PaymentStatus.partial);
+      expect(order.payment_status).toBe(PaymentStatus.pending_at_table);
     });
   });
 

@@ -9,7 +9,13 @@ export class ChatbotController {
       const userId = req.user!.id;
       const role = req.user!.role;
       
-      const response = await chatbotService.chat(message, userId, role, context);
+      const chatContext = {
+        userId,
+        role,
+        conversationHistory: context || []
+      };
+      
+      const response = await chatbotService.chat(message, chatContext);
       res.json(response);
     } catch (error) {
       next(error);
@@ -53,7 +59,8 @@ export class ChatbotController {
   async getReservationHelp(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { query } = req.body;
-      const help = await chatbotService.getReservationHelp(query);
+      const userId = req.user!.id;
+      const help = await chatbotService.getReservationHelp(userId, query);
       res.json(help);
     } catch (error) {
       next(error);
