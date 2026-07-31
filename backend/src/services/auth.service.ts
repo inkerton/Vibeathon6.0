@@ -78,12 +78,25 @@ export class AuthService {
     }
 
     console.log('[AUTH_SERVICE] Registration completed successfully');
-    return {
+    
+    const response = {
       id: user.id,
       email: user.email,
       name: user.name,
       message: 'Registration successful. Please verify your email with the OTP sent.',
     };
+
+    // Add OTP to response in development/test mode for easy testing
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[AUTH_SERVICE] Development mode: Including OTP in response for testing');
+      return {
+        ...response,
+        otp: otp_code,
+        message: 'Registration successful. Please use the OTP provided to verify your email.',
+      };
+    }
+
+    return response;
   }
 
   async verifyOTP(email: string, otp: string) {
@@ -299,9 +312,20 @@ export class AuthService {
     // Send OTP email
     await sendOTPEmail(user.email, otp_code);
 
-    return {
+    const response = {
       message: 'OTP sent successfully',
     };
+
+    // Add OTP to response in development/test mode for easy testing
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[AUTH_SERVICE] Development mode: Including OTP in resend response for testing');
+      return {
+        ...response,
+        otp: otp_code,
+      };
+    }
+
+    return response;
   }
 
   async getCurrentUser(userId: string) {
