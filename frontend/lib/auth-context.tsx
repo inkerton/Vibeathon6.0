@@ -17,7 +17,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
-  register: (data: { name: string; email: string; password: string; phone?: string }) => Promise<void>;
+  register: (data: { name: string; email: string; password: string; phone?: string }) => Promise<any>;
   verifyOTP: (email: string, otp: string) => Promise<User>;
   logout: () => void;
   isAuthenticated: boolean;
@@ -102,7 +102,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log('[AUTH_CONTEXT] Sending POST to /auth/register');
       const response = await apiClient.post('/auth/register', data);
       console.log('[AUTH_CONTEXT] Registration API response:', response.data);
-      // User needs to verify OTP before being logged in
+      
+      // Return the response data (may include OTP in development mode)
+      return response.data.data;
     } catch (error: any) {
       console.error('[AUTH_CONTEXT] Registration API error:', error);
       console.error('[AUTH_CONTEXT] Error response:', error.response?.data);

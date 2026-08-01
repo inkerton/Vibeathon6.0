@@ -20,6 +20,8 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [showOTP, setShowOTP] = useState(false);
   const [otp, setOtp] = useState("");
+  const [receivedOTP, setReceivedOTP] = useState<string | null>(null);
+  const [showOTPNotification, setShowOTPNotification] = useState(false);
   const { register, verifyOTP } = useAuth();
   const router = useRouter();
 
@@ -45,8 +47,16 @@ export default function RegisterPage() {
 
     try {
       console.log('[REGISTER] Calling register API...');
-      await register(formData);
+      const response = await register(formData);
       console.log('[REGISTER] Registration successful, showing OTP screen');
+      
+      // Check if OTP was returned (development mode)
+      if (response?.otp) {
+        console.log('[REGISTER] OTP received from backend:', response.otp);
+        setReceivedOTP(response.otp);
+        setShowOTPNotification(true);
+      }
+      
       setShowOTP(true);
     } catch (err: any) {
       console.error('[REGISTER] Registration failed:', err);
@@ -106,7 +116,45 @@ export default function RegisterPage() {
 
   if (showOTP) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <>
+        {/* OTP Notification */}
+        {showOTPNotification && receivedOTP && (
+          <div className="fixed top-4 right-4 z-50 max-w-md animate-in slide-in-from-top-5">
+            <div className="bg-blue-600 text-white p-6 rounded-lg shadow-2xl border-2 border-blue-400">
+              <div className="flex items-start justify-between mb-3">
+                <h3 className="text-lg font-bold">🔐 Your OTP Code</h3>
+                <button
+                  onClick={() => setShowOTPNotification(false)}
+                  className="text-white hover:text-gray-200 text-xl leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+              <p className="text-sm mb-3 text-blue-100">
+                For testing purposes, here's your OTP:
+              </p>
+              <div className="bg-white text-gray-900 p-4 rounded-md mb-3">
+                <p className="text-3xl font-mono font-bold text-center tracking-widest">
+                  {receivedOTP}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(receivedOTP);
+                  alert('OTP copied to clipboard!');
+                }}
+                className="w-full bg-blue-500 hover:bg-blue-400 text-white font-semibold py-2 px-4 rounded transition-colors"
+              >
+                📋 Copy OTP
+              </button>
+              <p className="text-xs text-blue-100 mt-3 text-center">
+                This OTP is valid for 5 minutes
+              </p>
+            </div>
+          </div>
+        )}
+        
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8 ">
           <div>
             <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
@@ -161,11 +209,49 @@ export default function RegisterPage() {
           </form>
         </div>
       </div>
+      </>
     );
   }
 
   return (
     <div className="relative min-h-screen overflow-hidden">
+      {/* OTP Notification */}
+      {showOTPNotification && receivedOTP && (
+        <div className="fixed top-4 right-4 z-50 max-w-md animate-in slide-in-from-top-5">
+          <div className="bg-blue-600 text-white p-6 rounded-lg shadow-2xl border-2 border-blue-400">
+            <div className="flex items-start justify-between mb-3">
+              <h3 className="text-lg font-bold">🔐 Your OTP Code</h3>
+              <button
+                onClick={() => setShowOTPNotification(false)}
+                className="text-white hover:text-gray-200 text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-sm mb-3 text-blue-100">
+              For testing purposes, here's your OTP:
+            </p>
+            <div className="bg-white text-gray-900 p-4 rounded-md mb-3">
+              <p className="text-3xl font-mono font-bold text-center tracking-widest">
+                {receivedOTP}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(receivedOTP);
+                alert('OTP copied to clipboard!');
+              }}
+              className="w-full bg-blue-500 hover:bg-blue-400 text-white font-semibold py-2 px-4 rounded transition-colors"
+            >
+              📋 Copy OTP
+            </button>
+            <p className="text-xs text-blue-100 mt-3 text-center">
+              This OTP is valid for 5 minutes
+            </p>
+          </div>
+        </div>
+      )}
+      
       {/* Background */}
       <div className="absolute inset-0 -z-10">
         <Vortex />
