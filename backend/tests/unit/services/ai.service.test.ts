@@ -1,72 +1,93 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 
-jest.mock('@google/generative-ai');
+jest.mock('openai');
 
 describe('AI Service - Unit Tests', () => {
-  let mockGenAI: any;
-  let mockModel: any;
+  let mockClient: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
     
-    mockModel = {
-      generateContent: jest.fn(),
+    mockClient = {
+      chat: {
+        completions: {
+          create: jest.fn(),
+        },
+      },
     };
 
-    mockGenAI = {
-      getGenerativeModel: jest.fn().mockReturnValue(mockModel),
-    };
-
-    (GoogleGenerativeAI as jest.Mock).mockImplementation(() => mockGenAI);
+    (OpenAI as jest.MockedClass<typeof OpenAI>).mockImplementation(() => mockClient);
   });
 
   describe('AI Initialization', () => {
-    it('should initialize with API key', () => {
-      const apiKey = 'test_api_key';
-      const genAI = new GoogleGenerativeAI(apiKey);
+    it('should initialize with API key and base URL', () => {
+      const client = new OpenAI({
+        baseURL: 'https://router.bynara.id/v1',
+        apiKey: 'sk-nry-test-key',
+      });
       
-      expect(GoogleGenerativeAI).toHaveBeenCalledWith(apiKey);
+      expect(OpenAI).toHaveBeenCalledWith({
+        baseURL: 'https://router.bynara.id/v1',
+        apiKey: 'sk-nry-test-key',
+      });
     });
 
-    it('should get generative model', () => {
-      const genAI = new GoogleGenerativeAI('test_key');
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      
-      expect(genAI.getGenerativeModel).toHaveBeenCalledWith({
-        model: 'gemini-1.5-flash',
+    it('should use default base URL if not provided', () => {
+      const client = new OpenAI({
+        baseURL: 'https://router.bynara.id/v1',
+        apiKey: 'test_key',
       });
+      
+      expect(OpenAI).toHaveBeenCalled();
     });
   });
 
   describe('Content Generation', () => {
     it('should generate content from prompt', async () => {
       const mockResponse = {
-        response: {
-          text: () => JSON.stringify({ recommendations: [] }),
-        },
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({ recommendations: [] }),
+            },
+          },
+        ],
       };
 
-      mockModel.generateContent.mockResolvedValue(mockResponse);
+      mockClient.chat.completions.create.mockResolvedValue(mockResponse);
 
-      const result = await mockModel.generateContent('test prompt');
-      const text = result.response.text();
+      const result = await mockClient.chat.completions.create({
+        model: 'deepseek-3.2',
+        messages: [{ role: 'user', content: 'test prompt' }],
+      });
 
-      expect(mockModel.generateContent).toHaveBeenCalledWith('test prompt');
-      expect(text).toBeTruthy();
+      expect(mockClient.chat.completions.create).toHaveBeenCalledWith({
+        model: 'deepseek-3.2',
+        messages: [{ role: 'user', content: 'test prompt' }],
+      });
+      expect(result.choices[0].message.content).toBeTruthy();
     });
 
     it('should handle JSON responses', async () => {
       const mockData = { recommendations: ['item1', 'item2'] };
       const mockResponse = {
-        response: {
-          text: () => JSON.stringify(mockData),
-        },
+        choices: [
+          {
+            message: {
+              content: JSON.stringify(mockData),
+            },
+          },
+        ],
       };
 
-      mockModel.generateContent.mockResolvedValue(mockResponse);
+      mockClient.chat.completions.create.mockResolvedValue(mockResponse);
 
-      const result = await mockModel.generateContent('prompt');
-      const data = JSON.parse(result.response.text());
+      const result = await mockClient.chat.completions.create({
+        model: 'deepseek-3.2',
+        messages: [{ role: 'user', content: 'prompt' }],
+      });
+
+      const data = JSON.parse(result.choices[0].message.content);
 
       expect(data).toEqual(mockData);
       expect(data.recommendations).toHaveLength(2);
@@ -75,32 +96,48 @@ describe('AI Service - Unit Tests', () => {
 
   describe('Error Handling', () => {
     it('should handle API errors', async () => {
-      mockModel.generateContent.mockRejectedValue(new Error('API Error'));
+      mockClient.chat.completions.create.mockRejectedValue(new Error('API Error'));
 
-      await expect(mockModel.generateContent('prompt')).rejects.toThrow('API Error');
+      await expect(
+        mockClient.chat.completions.create({
+          model: 'deepseek-3.2',
+          messages: [{ role: 'user', content: 'prompt' }],
+        })
+      ).rejects.toThrow('API Error');
     });
 
     it('should handle rate limiting', async () => {
-      mockModel.generateContent.mockRejectedValue(
+      mockClient.chat.completions.create.mockRejectedValue(
         new Error('Rate limit exceeded')
       );
 
-      await expect(mockModel.generateContent('prompt')).rejects.toThrow(
-        'Rate limit exceeded'
-      );
+      await expect(
+        mockClient.chat.completions.create({
+          model: 'deepseek-3.2',
+          messages: [{ role: 'user', content: 'prompt' }],
+        })
+      ).rejects.toThrow('Rate limit exceeded');
     });
 
     it('should handle invalid responses', async () => {
       const mockResponse = {
-        response: {
-          text: () => 'invalid json',
-        },
+        choices: [
+          {
+            message: {
+              content: 'invalid json',
+            },
+          },
+        ],
       };
 
-      mockModel.generateContent.mockResolvedValue(mockResponse);
+      mockClient.chat.completions.create.mockResolvedValue(mockResponse);
 
-      const result = await mockModel.generateContent('prompt');
-      const text = result.response.text();
+      const result = await mockClient.chat.completions.create({
+        model: 'deepseek-3.2',
+        messages: [{ role: 'user', content: 'prompt' }],
+      });
+
+      const text = result.choices[0].message.content;
 
       expect(() => JSON.parse(text)).toThrow();
     });
@@ -207,6 +244,46 @@ describe('AI Service - Unit Tests', () => {
       const isExpired = Date.now() - timestamp > ttl * 1000;
 
       expect(isExpired).toBe(false);
+    });
+  });
+
+  describe('Model Configuration', () => {
+    it('should use configured model', async () => {
+      const mockResponse = {
+        choices: [{ message: { content: 'response' } }],
+      };
+
+      mockClient.chat.completions.create.mockResolvedValue(mockResponse);
+
+      await mockClient.chat.completions.create({
+        model: 'deepseek-3.2',
+        messages: [{ role: 'user', content: 'test' }],
+      });
+
+      expect(mockClient.chat.completions.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'deepseek-3.2',
+        })
+      );
+    });
+
+    it('should support alternative models', async () => {
+      const mockResponse = {
+        choices: [{ message: { content: 'response' } }],
+      };
+
+      mockClient.chat.completions.create.mockResolvedValue(mockResponse);
+
+      await mockClient.chat.completions.create({
+        model: 'gemini-3.1-pro',
+        messages: [{ role: 'user', content: 'test' }],
+      });
+
+      expect(mockClient.chat.completions.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'gemini-3.1-pro',
+        })
+      );
     });
   });
 });

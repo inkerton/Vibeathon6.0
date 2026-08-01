@@ -247,7 +247,7 @@ export function Navbar({ onLogout }: NavbarProps) {
           {/* Right Side - User Profile & Mobile Menu */}
           <div className="flex items-center gap-2">
             {/* Desktop User Profile Dropdown */}
-            <div className="hidden md:block">
+            <div className="hidden lg:block ">
               <UserProfileDropdown onLogout={onLogout} />
             </div>
 

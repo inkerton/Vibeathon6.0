@@ -469,7 +469,7 @@ Vibeathon6.0/
 - [ ] Reviews and ratings system
 
 ### Phase 2: Advanced Features (Next 1 month)
-- [ ] AI-powered menu recommendations (Google Gemini)
+- [ ] AI-powered menu recommendations (NaraRouter with DeepSeek/Gemini models)
 - [ ] Predictive inventory management
 - [ ] Automated reordering based on usage patterns
 - [ ] Customer loyalty program

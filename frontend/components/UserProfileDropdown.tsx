@@ -65,7 +65,7 @@ export function UserProfileDropdown({ onLogout }: UserProfileDropdownProps) {
         </div>
 
         {/* User Info (Desktop) */}
-        <div className="hidden md:block text-left">
+        <div className="hidden lg:block text-left">
           <p className="text-sm font-semibold text-gray-900">{user.name}</p>
           <p className="text-xs text-gray-500">{user.email}</p>
         </div>

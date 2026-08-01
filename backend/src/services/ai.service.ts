@@ -1,9 +1,8 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import NodeCache from 'node-cache';
 
 class AIService {
-  private genAI: GoogleGenerativeAI | null = null;
-  private model: any = null;
+  private client: OpenAI | null = null;
   private cache: NodeCache;
 
   constructor() {
@@ -11,25 +10,25 @@ class AIService {
   }
 
   private initializeAI() {
-    if (this.genAI) return; // Already initialized
+    if (this.client) return; // Already initialized
     
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.NARAROUTER_API_KEY;
     if (!apiKey) {
-      console.warn('GEMINI_API_KEY not found in environment variables. AI features will be disabled.');
+      console.warn('NARAROUTER_API_KEY not found in environment variables. AI features will be disabled.');
       return;
     }
     
-    this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({ 
-      model: process.env.GEMINI_MODEL || 'gemini-1.5-pro' 
+    this.client = new OpenAI({
+      baseURL: process.env.NARAROUTER_BASE_URL || 'https://router.bynara.id/v1',
+      apiKey: apiKey,
     });
   }
 
   async generateText(prompt: string, useCache = true): Promise<string> {
     this.initializeAI();
     
-    if (!process.env.GEMINI_API_KEY || !this.model) {
-      throw new Error('Gemini API key not configured');
+    if (!process.env.NARAROUTER_API_KEY || !this.client) {
+      throw new Error('NaraRouter API key not configured');
     }
 
     if (useCache) {
@@ -41,16 +40,39 @@ class AIService {
     }
 
     try {
-      const result = await this.model.generateContent(prompt);
-      const response = result.response.text();
+      const model = process.env.NARAROUTER_MODEL || 'deepseek-3.2';
+      
+      console.log('🤖 Making NaraRouter API request with model:', model);
+      
+      const response = await this.client.chat.completions.create({
+        model: model,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+      });
+
+      console.log('📦 Full NaraRouter API Response:', JSON.stringify(response, null, 2));
+      console.log('📊 Response type:', typeof response);
+      console.log('🔍 Response keys:', Object.keys(response));
+      console.log('✅ Response.choices exists?', 'choices' in response);
+      console.log('✅ Response.choices value:', response.choices);
+
+      const text = response.choices?.[0]?.message?.content || '';
+      
+      console.log('📝 Extracted text:', text);
       
       if (useCache) {
-        this.cache.set(prompt, response);
+        this.cache.set(prompt, text);
       }
       
-      return response;
+      return text;
     } catch (error) {
-      console.error('AI generation error:', error);
+      console.error('❌ AI generation error:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
       throw new Error('Failed to generate AI response');
     }
   }

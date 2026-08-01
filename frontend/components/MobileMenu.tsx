@@ -79,7 +79,7 @@ export function MobileMenu({ navigationItems, onLogout, userName, userEmail, use
       {/* Hamburger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
         aria-label="Toggle menu"
         aria-expanded={isOpen}
       >
@@ -99,13 +99,13 @@ export function MobileMenu({ navigationItems, onLogout, userName, userEmail, use
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
             onClick={() => setIsOpen(false)}
             aria-hidden="true"
           />
 
           {/* Menu Panel */}
-          <div className="fixed inset-y-0 right-0 w-80 bg-white shadow-xl z-50 md:hidden overflow-y-auto">
+          <div className="fixed inset-y-0 right-0 w-80 bg-white shadow-xl z-50 lg:hidden overflow-y-auto">
             {/* Header */}
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Menu</h2>

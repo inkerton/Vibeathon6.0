@@ -20,7 +20,7 @@ interface RecommendedMenuItem {
 
 interface Recommendation {
   id: string;
-  menuItem: RecommendedMenuItem;
+  menu_item: RecommendedMenuItem;
   score: number;
   reason: string;
 }
@@ -132,8 +132,8 @@ export function RecommendationsSection({ onAddToCart }: RecommendationsSectionPr
               {/* Image */}
               <div className="relative h-40 w-full overflow-hidden bg-slate-100">
                 <Image
-                  src={getImageUrl(rec.menuItem?.image_url)}
-                  alt={rec.menuItem?.name ?? 'Menu item'}
+                  src={getImageUrl(rec.menu_item?.image_url)}
+                  alt={rec.menu_item?.name ?? 'Menu item'}
                   fill
                   unoptimized
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -150,21 +150,20 @@ export function RecommendationsSection({ onAddToCart }: RecommendationsSectionPr
               <div className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="font-semibold text-slate-900 text-sm leading-tight line-clamp-1">
-                    {rec.menuItem?.name}
+                    {rec.menu_item?.name}
                   </h3>
                   <span className="text-sm font-bold text-blue-600 shrink-0">
-                    ₹{rec.menuItem?.price}
+                    ₹{rec.menu_item?.price}
                   </span>
                 </div>
 
                 <p className="text-xs text-slate-500 line-clamp-1 capitalize">
-                  {rec.menuItem?.category?.replaceAll('_', ' ')}
+                  {rec.menu_item?.category?.replaceAll('_', ' ')}
                 </p>
 
                 {/* AI Reason */}
                 <div className="rounded-lg bg-blue-50 p-2">
-                  <p className="text-xs text-blue-700 line-clamp-2 leading-relaxed">
-                    <span className="font-semibold">Why: </span>
+                  <p className="text-xs text-blue-700 leading-relaxed">
                     {rec.reason}
                   </p>
                 </div>
@@ -173,7 +172,7 @@ export function RecommendationsSection({ onAddToCart }: RecommendationsSectionPr
                   <Button
                     size="sm"
                     className="w-full rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-xs"
-                    onClick={() => onAddToCart(rec.menuItem)}
+                    onClick={() => onAddToCart(rec.menu_item)}
                   >
                     Add to Cart
                   </Button>

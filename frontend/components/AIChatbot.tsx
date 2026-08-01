@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Loader2, Bot, User } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -31,6 +32,11 @@ export function AIChatbot() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+
+  useEffect(() => {
+    console.log({quickPrompts});
+    
+  }, [quickPrompts]);
   // Fetch dynamic suggestions from API on first open
   useEffect(() => {
     if (!isOpen) return;
@@ -41,15 +47,14 @@ export function AIChatbot() {
         .get('/ai/chat/suggestions')
         .then((res: any) => {
           const data = res.data?.data ?? res.data;
+          console.log({data});
+          
           // Spec: data.roleSpecific.topQuestions or flatten data.suggestions[].questions
-          const top: string[] | undefined = data?.roleSpecific?.topQuestions;
+          const top: string[] | undefined = data.roleSpecific?.topQuestions;
           if (top && top.length > 0) {
             setQuickPrompts(top.slice(0, 4));
-          } else if (data?.suggestions && Array.isArray(data.suggestions)) {
-            const flat: string[] = (data.suggestions as SuggestionCategory[])
-              .flatMap((s) => s.questions)
-              .slice(0, 4);
-            if (flat.length > 0) setQuickPrompts(flat);
+          } else if (data?.suggestions) {
+            setQuickPrompts(data.suggestions.slice(0, 4));
           }
         })
         .catch(() => {
@@ -204,7 +209,11 @@ export function AIChatbot() {
                       : 'rounded-bl-sm bg-slate-100 text-slate-800'
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  {msg.role === 'assistant' ? (
+                    <MarkdownRenderer content={msg.content} />
+                  ) : (
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  )}
                   <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-blue-200' : 'text-slate-400'}`}>
                     {formatTime(msg.timestamp)}
                   </p>

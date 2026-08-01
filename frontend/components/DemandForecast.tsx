@@ -48,11 +48,12 @@ interface StaffingData {
 
 interface RecentForecast {
   id: string;
-  periodStart: string;
-  periodEnd: string;
-  totalPredictedOrders: number;
-  accuracy: number | null;
-  generatedAt: string;
+  menu_item_id: string | null;
+  forecast_date: string;
+  predicted_orders: number;
+  confidence: number;
+  peak_hours: number[];
+  created_at: string;
 }
 
 const HOUR_LABELS = ['12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am',
@@ -70,6 +71,12 @@ export function DemandForecast() {
   useEffect(() => {
     loadData();
   }, []);
+
+
+  useEffect(() =>{
+    console.log({recentForecasts})
+    
+  }, [recentForecasts]);
 
   const loadData = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -416,24 +423,20 @@ export function DemandForecast() {
               <div key={rf.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 gap-4">
                 <div className="text-sm">
                   <span className="font-medium text-slate-800">
-                    {new Date(rf.periodStart).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                    {' → '}
-                    {new Date(rf.periodEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    {new Date(rf.forecast_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </span>
                   <span className="ml-2 text-xs text-slate-400">
-                    Generated {new Date(rf.generatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    Generated {new Date(rf.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-sm font-bold text-blue-600">{rf.totalPredictedOrders} orders</span>
-                  {rf.accuracy != null && (
-                    <Badge
-                      variant={rf.accuracy >= 0.9 ? 'success' : rf.accuracy >= 0.75 ? 'warning' : 'danger'}
-                      className="text-xs"
-                    >
-                      {(rf.accuracy * 100).toFixed(0)}% accurate
-                    </Badge>
-                  )}
+                  <span className="text-sm font-bold text-blue-600">{rf.predicted_orders} orders</span>
+                  <Badge
+                    variant={rf.confidence >= 0.8 ? 'success' : rf.confidence >= 0.6 ? 'warning' : 'danger'}
+                    className="text-xs"
+                  >
+                    {(rf.confidence * 100).toFixed(0)}% confidence
+                  </Badge>
                 </div>
               </div>
             ))}

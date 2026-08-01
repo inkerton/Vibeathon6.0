@@ -279,6 +279,13 @@ export default function CustomerMenu() {
           </div>
         </div>
 
+        
+
+        {/* AI Recommendations */}
+        <div className="mt-8">
+          <RecommendationsSection onAddToCart={(item) => addToCart(item as MenuItem)} />
+        </div>
+
         {/* Category Pills */}
         <div className="mt-8 flex gap-3 overflow-x-auto pb-2">
           {categories.map((cat) => (
@@ -295,11 +302,6 @@ export default function CustomerMenu() {
               {cat.replaceAll('_', ' ').toUpperCase()}
             </button>
           ))}
-        </div>
-
-        {/* AI Recommendations */}
-        <div className="mt-8">
-          <RecommendationsSection onAddToCart={(item) => addToCart(item as MenuItem)} />
         </div>
 
         <div className="mt-10 grid gap-8 lg:grid-cols-3">
